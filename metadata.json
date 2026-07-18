@@ -1,0 +1,6 @@
+{
+  "name": "SAVANNAH SUITES & SAFARIS",
+  "description": "Airbnb-style lodging, custom safari trips, and vouchers for local experiences in East Africa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
