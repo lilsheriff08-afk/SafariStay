@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         
         // Initialize Room persistence layer
         val database = AppDatabase.getDatabase(applicationContext)
-        val repository = SafariRepository(database.appDao())
+        val repository = SafariRepository(database.appDao(), database.sightingDao(), database.journalDao())
         
         // Initialize ViewModel via Factory
         val viewModel = ViewModelProvider(

@@ -12,5 +12,6 @@ data class VoucherEntity(
     val originalValue: Double,
     val remainingValue: Double,
     val expiryDate: String,
+    val expiryTimestamp: Long, // Added for notification logic
     val status: String // "Active", "Redeemed", "Expired"
 )

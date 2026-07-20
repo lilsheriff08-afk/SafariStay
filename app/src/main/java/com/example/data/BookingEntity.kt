@@ -10,6 +10,7 @@ data class BookingEntity(
     val title: String,
     val location: String,
     val dateRange: String,
+    val startDateTimestamp: Long, // Added for notification logic
     val price: Double,
     val imageResName: String,
     val status: String, // "Confirmed", "Pending"
