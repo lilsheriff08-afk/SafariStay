@@ -7,9 +7,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModelProvider
 import com.example.data.AppDatabase
 import com.example.data.SafariRepository
+import com.example.ui.AuthScreen
 import com.example.ui.SafariApp
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.SafariViewModel
@@ -21,7 +24,7 @@ class MainActivity : ComponentActivity() {
         
         // Initialize Room persistence layer
         val database = AppDatabase.getDatabase(applicationContext)
-        val repository = SafariRepository(database.appDao(), database.sightingDao(), database.journalDao())
+        val repository = SafariRepository(applicationContext, database.appDao(), database.sightingDao(), database.journalDao(), database.syncDao())
         
         // Initialize ViewModel via Factory
         val viewModel = ViewModelProvider(
@@ -35,7 +38,12 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    SafariApp(viewModel = viewModel)
+                    val isAuthenticated by viewModel.isAuthenticated.collectAsState()
+                    if (isAuthenticated) {
+                        SafariApp(viewModel = viewModel)
+                    } else {
+                        AuthScreen(viewModel = viewModel)
+                    }
                 }
             }
         }

@@ -31,14 +31,14 @@ fun WeatherWidget(weather: WeatherCacheEntity?) {
     }
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -47,31 +47,31 @@ fun WeatherWidget(weather: WeatherCacheEntity?) {
                     imageVector = Icons.Default.WbSunny,
                     contentDescription = null,
                     tint = Color(0xFFFFB300),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Weather in ${weather.locationName}",
-                    fontSize = 15.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Surface(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
-                        text = "Bush Forecast",
-                        fontSize = 10.sp,
+                        text = "Forecast",
+                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -83,16 +83,16 @@ fun WeatherWidget(weather: WeatherCacheEntity?) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = weather.temperature,
-                            fontSize = 28.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = weather.condition,
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
                 }
@@ -101,29 +101,19 @@ fun WeatherWidget(weather: WeatherCacheEntity?) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     WeatherInfoPill(
                         icon = Icons.Default.WbSunny,
-                        label = "Sunrise",
+                        label = "Rise",
                         value = weather.sunrise,
                         iconColor = Color(0xFFFFD54F)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     WeatherInfoPill(
                         icon = Icons.Default.WbTwilight,
-                        label = "Sunset",
+                        label = "Set",
                         value = weather.sunset,
                         iconColor = Color(0xFFFF8A65)
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            val timeString = SimpleDateFormat("HH:mm", Locale.US).format(Date(weather.lastUpdated))
-            Text(
-                text = "Last updated at $timeString via Bush Satellite",
-                fontSize = 9.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                textAlign = TextAlign.End,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }

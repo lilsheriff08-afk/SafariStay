@@ -10,7 +10,10 @@ interface AppDao {
     fun getAllBookings(): Flow<List<BookingEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBooking(booking: BookingEntity)
+    suspend fun insertBooking(booking: BookingEntity): Long
+
+    @Query("UPDATE bookings SET status = :status WHERE id = :id")
+    suspend fun updateBookingStatus(id: Int, status: String)
 
     @Delete
     suspend fun deleteBooking(booking: BookingEntity)

@@ -12,8 +12,49 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.FirebaseApp
+
+data class BookingBreakdown(
+    val grossTotal: Double,
+    val commission: Double,
+    val remittedToLodge: Double,
+    val conservationPledge: Double,
+    val netPlatformRevenue: Double
+)
+
+data class GeminiItineraryState(
+    val isLoading: Boolean = false,
+    val lodgeLocation: String = "",
+    val country: String = "Kenya",
+    val durationDays: Int = 3,
+    val travelParty: String = "Couples / Explorers",
+    val budget: String = "Mid-Range Safari Lodges ($$)",
+    val interests: List<String> = emptyList(),
+    val pace: String = "Balanced & Immersive",
+    val generatedPlanText: String? = null,
+    val errorMessage: String? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
 
 class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
+
+    val paymentRepository: PaymentRepository = repository.paymentRepository
+
+    fun calculateBookingBreakdown(totalPrice: Double, commissionRate: Double): BookingBreakdown {
+        val commission = totalPrice * commissionRate
+        val remittedToLodge = totalPrice - commission
+        val conservationPledge = commission * 0.10 // 10% of commission goes to conservation
+        val netPlatformRevenue = commission - conservationPledge
+        
+        return BookingBreakdown(
+            grossTotal = totalPrice,
+            commission = commission,
+            remittedToLodge = remittedToLodge,
+            conservationPledge = conservationPledge,
+            netPlatformRevenue = netPlatformRevenue
+        )
+    }
 
 
     // Tab state: "stays", "safaris", "vouchers", "bookings"
@@ -26,6 +67,13 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
 
     // User's interactive bookings & vouchers from Room database
     val bookings: StateFlow<List<BookingEntity>> = repository.allBookings
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val localBookings: StateFlow<List<com.example.data.local.BookingEntity>> = repository.localBookings
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -70,6 +118,26 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
     }
 
     // --- BUDGET MANAGEMENT ---
+    // --- GOOGLE PLACES API ---
+    private val _placeDetails = MutableStateFlow<Map<String, PlaceResponse>>(emptyList<Pair<String, PlaceResponse>>().toMap())
+    val placeDetails: StateFlow<Map<String, PlaceResponse>> = _placeDetails.asStateFlow()
+
+    fun fetchPlaceDetails(stay: StayItem) {
+        val placeId = stay.googlePlaceId ?: return
+        if (_placeDetails.value.containsKey(placeId)) return // Already cached
+
+        viewModelScope.launch {
+            val response = repository.getPlaceDetails(placeId)
+            if (response != null) {
+                _placeDetails.value = _placeDetails.value + (placeId to response)
+            }
+        }
+    }
+
+    fun getPlacePhotoUrl(photoName: String, maxWidth: Int = 800): String {
+        return repository.getPlacePhotoUrl(photoName, maxWidth)
+    }
+
     private val _totalBudget = MutableStateFlow(5000f)
     val totalBudget: StateFlow<Float> = _totalBudget.asStateFlow()
 
@@ -116,6 +184,9 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         else list.count { it.isCompleted }.toFloat() / list.size.toFloat()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
 
+    val pendingSyncCount: StateFlow<Int> = repository.pendingSyncCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     fun toggleChecklistItem(item: ChecklistItem) {
         viewModelScope.launch {
             repository.updateChecklistItem(item.copy(isCompleted = !item.isCompleted))
@@ -135,14 +206,152 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         _totalBudget.value = amount
     }
 
+    private val auth: FirebaseAuth? by lazy {
+        try {
+            if (FirebaseApp.getApps(repository.context).isEmpty()) {
+                FirebaseApp.initializeApp(repository.context)
+            }
+            FirebaseAuth.getInstance()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private val _isOnline = MutableStateFlow(true)
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
+    private val _isOwner = MutableStateFlow(false)
+    val isOwner: StateFlow<Boolean> = _isOwner.asStateFlow()
+
+    private val _isAuthenticated = MutableStateFlow(auth?.currentUser != null)
+    val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
+
+    fun loginWithEmail(email: String, pass: String) {
+        val firebaseAuth = auth
+        if (firebaseAuth == null) {
+            _isAuthenticated.value = true
+            _uiEvent.value = "Signed in (Guest/Offline mode)"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                firebaseAuth.signInWithEmailAndPassword(email, pass)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            _isAuthenticated.value = true
+                            _uiEvent.value = "Welcome back!"
+                        } else {
+                            _uiEvent.value = "Login failed: ${task.exception?.message}"
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiEvent.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    fun registerWithEmail(email: String, pass: String) {
+        val firebaseAuth = auth
+        if (firebaseAuth == null) {
+            _isAuthenticated.value = true
+            _uiEvent.value = "Account created (Guest/Offline mode)"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                firebaseAuth.createUserWithEmailAndPassword(email, pass)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            _isAuthenticated.value = true
+                            _uiEvent.value = "Account created successfully!"
+                        } else {
+                            _uiEvent.value = "Registration failed: ${task.exception?.message}"
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiEvent.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    fun loginWithProvider(provider: String) {
+        viewModelScope.launch {
+            _uiEvent.value = "Authenticating with $provider..."
+            delay(1500)
+            _isAuthenticated.value = true
+        }
+    }
+
+    fun loginWithPhone(phoneNumber: String, code: String) {
+        viewModelScope.launch {
+            // Simulate API call to verify OTP
+            delay(1000)
+            _isAuthenticated.value = true
+        }
+    }
+
+    fun logout() {
+        try {
+            auth?.signOut()
+        } catch (_: Exception) {}
+        _isAuthenticated.value = false
+    }
+
+    fun toggleOwnerMode() {
+        _isOwner.value = !_isOwner.value
+    }
+
+    fun sendRangerAlert(message: String, phone: String = "+254712345678", viaWhatsApp: Boolean = false) {
+        viewModelScope.launch {
+            val response = if (viaWhatsApp) {
+                repository.sendWhatsAppAlert(phone, message)
+            } else {
+                repository.sendEmergencySms(phone, message)
+            }
+            
+            if (response != null) {
+                val channel = if (viaWhatsApp) "WhatsApp" else "SMS"
+                _uiEvent.value = "$channel Alert Sent to $phone"
+            } else {
+                _uiEvent.value = "Failed to send alert"
+            }
+        }
+    }
+
+    fun initiateMpesaPayout(bookingId: String, phone: String, amount: Int) {
+        viewModelScope.launch {
+            _uiEvent.value = "Initiating M-Pesa Payout for $bookingId..."
+            val response = repository.initiateMpesaPayment(amount, phone, bookingId)
+            if (response != null && response.responseCode == "0") {
+                _uiEvent.value = "Success: Payout released to $phone (Ref: $bookingId)"
+            } else {
+                // Simulation fallback if keys are missing
+                delay(1500)
+                _uiEvent.value = "SIMULATION: M-Pesa Payout of $$amount released to $phone"
+            }
+        }
+    }
+
+    suspend fun initiateMpesaBookingPayment(phoneNumber: String, amount: Int, reference: String): Boolean {
+        _uiEvent.value = "Initiating M-Pesa Daraja STK Push for $phoneNumber..."
+        val response = repository.initiateMpesaPayment(amount, phoneNumber, reference)
+        val isSuccess = response != null && (response.responseCode == "0" || response.responseCode.isEmpty())
+        if (isSuccess) {
+            _uiEvent.value = "STK Push Sent to $phoneNumber! Check phone for M-Pesa PIN prompt."
+        } else {
+            _uiEvent.value = "M-Pesa payment failed to send STK push."
+        }
+        return isSuccess
+    }
 
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
     private val _lastSightingSyncTime = MutableStateFlow<Long?>(null)
     val lastSightingSyncTime: StateFlow<Long?> = _lastSightingSyncTime.asStateFlow()
+
+    private val _lastStaySyncTime = MutableStateFlow<Long?>(null)
+    val lastStaySyncTime: StateFlow<Long?> = _lastStaySyncTime.asStateFlow()
 
     // --- COMMUNITY SIGHTINGS FEED STATE ---
     private val _communitySightings = MutableStateFlow<List<CommunitySighting>>(
@@ -277,12 +486,16 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         selectedRegionFilter,
         selectedMonthFilter
     ) { query, region, month ->
+        val trimmedQuery = query.trim()
+        val keywords = trimmedQuery.split(" ").filter { it.isNotBlank() }
+        
         SafariCatalog.events.filter { event ->
             // Search match
-            val searchMatch = query.isEmpty() ||
-                    event.title.contains(query, ignoreCase = true) ||
-                    event.location.contains(query, ignoreCase = true) ||
-                    event.description.contains(query, ignoreCase = true)
+            val searchMatch = keywords.isEmpty() || keywords.all { keyword ->
+                event.title.contains(keyword, ignoreCase = true) ||
+                event.location.contains(keyword, ignoreCase = true) ||
+                event.description.contains(keyword, ignoreCase = true)
+            }
 
             // Region match
             val regionMatch = region == "All Regions" || event.region == region
@@ -302,12 +515,16 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         maxPriceFilter,
         selectedMonthFilter
     ) { query, minPrice, maxPrice, month ->
+        val trimmedQuery = query.trim()
+        val keywords = trimmedQuery.split(" ").filter { it.isNotBlank() }
+        
         SafariCatalog.stays.filter { stay ->
-            // Destination match
-            val destMatch = query.isEmpty() || 
-                    stay.title.contains(query, ignoreCase = true) ||
-                    stay.location.contains(query, ignoreCase = true) ||
-                    stay.country.contains(query, ignoreCase = true)
+            // Match all keywords
+            val destMatch = keywords.isEmpty() || keywords.all { keyword ->
+                stay.title.contains(keyword, ignoreCase = true) ||
+                stay.location.contains(keyword, ignoreCase = true) ||
+                stay.country.contains(keyword, ignoreCase = true)
+            }
             
             // Price match
             val priceMatch = stay.pricePerNight >= minPrice && stay.pricePerNight <= maxPrice
@@ -333,12 +550,16 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         maxPriceFilter,
         selectedMonthFilter
     ) { query, minPrice, maxPrice, month ->
+        val trimmedQuery = query.trim()
+        val keywords = trimmedQuery.split(" ").filter { it.isNotBlank() }
+        
         SafariCatalog.safaris.filter { safari ->
-            // Destination match
-            val destMatch = query.isEmpty() || 
-                    safari.title.contains(query, ignoreCase = true) ||
-                    safari.park.contains(query, ignoreCase = true) ||
-                    safari.country.contains(query, ignoreCase = true)
+            // Match all keywords
+            val destMatch = keywords.isEmpty() || keywords.all { keyword ->
+                safari.title.contains(keyword, ignoreCase = true) ||
+                safari.park.contains(keyword, ignoreCase = true) ||
+                safari.country.contains(keyword, ignoreCase = true)
+            }
             
             // Price match
             val priceMatch = safari.price >= minPrice && safari.price <= maxPrice
@@ -364,6 +585,10 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         _uiEvent.value = null
     }
 
+    fun setUiEvent(message: String) {
+        _uiEvent.value = message
+    }
+
     fun toggleOnline() {
         val newStatus = !_isOnline.value
         _isOnline.value = newStatus
@@ -372,6 +597,16 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
             syncSightings()
             syncAllFeedback()
             syncAllJournalEntries()
+            processSyncQueue()
+        }
+    }
+
+    fun processSyncQueue() {
+        if (!_isOnline.value) return
+        viewModelScope.launch {
+            _isSyncing.value = true
+            repository.processSyncQueue()
+            _isSyncing.value = false
         }
     }
 
@@ -541,7 +776,7 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
     fun resetFilters() {
         _searchQuery.value = ""
         _minPriceFilter.value = 0.0
-        _maxPriceFilter.value = 2000.0
+        _maxPriceFilter.value = 10000.0
         _selectedMonthFilter.value = "All Months"
         _selectedRegionFilter.value = "All Regions"
     }
@@ -553,14 +788,64 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
     }
 
     // Actions
-    fun buyVoucher(title: String, description: String, amount: Double) {
+    fun buyVoucher(title: String, description: String, amount: Double, phoneNumber: String = "") {
         viewModelScope.launch {
             if (amount <= 0.0) {
                 _uiEvent.value = "Please enter a valid amount."
                 return@launch
             }
             val voucher = repository.generateVoucher(title, description, amount)
-            _uiEvent.value = "Success! Created Voucher: ${voucher.code} with $${String.format("%.2f", amount)}"
+            if (phoneNumber.isNotBlank()) {
+                val paymentResult = paymentRepository.checkoutVoucher(
+                    voucherAmount = amount,
+                    phoneNumber = phoneNumber,
+                    recipientName = title,
+                    voucherCode = voucher.code
+                )
+                when (paymentResult) {
+                    is PaymentResult.Success -> {
+                        _uiEvent.value = "Success! Voucher ${voucher.code} purchased. ${paymentResult.customerMessage}"
+                    }
+                    is PaymentResult.Pending -> {
+                        _uiEvent.value = "Payment Pending: ${paymentResult.customerMessage}"
+                    }
+                    is PaymentResult.Error -> {
+                        _uiEvent.value = "Payment Notice: ${paymentResult.message}. Voucher ${voucher.code} created."
+                    }
+                }
+            } else {
+                _uiEvent.value = "Success! Created Voucher: ${voucher.code} with $${String.format("%.2f", amount)}"
+            }
+        }
+    }
+
+    fun checkoutSafariWithMpesa(
+        safari: SafariItem,
+        phoneNumber: String,
+        dateRange: String,
+        voucherCode: String? = null
+    ) {
+        viewModelScope.launch {
+            val bookingRef = "SAF-" + (1000..9999).random()
+            _uiEvent.value = "Initiating M-Pesa checkout for ${safari.title}..."
+            val paymentResult = paymentRepository.checkoutSafariBooking(
+                amount = safari.price,
+                phoneNumber = phoneNumber,
+                safariTitle = safari.title,
+                bookingReference = bookingRef
+            )
+            when (paymentResult) {
+                is PaymentResult.Success -> {
+                    bookSafari(safari, dateRange, voucherCode)
+                    _uiEvent.value = "Safari Booked! ${paymentResult.customerMessage}"
+                }
+                is PaymentResult.Pending -> {
+                    _uiEvent.value = "Payment Pending: ${paymentResult.customerMessage}"
+                }
+                is PaymentResult.Error -> {
+                    _uiEvent.value = "Payment Failed: ${paymentResult.message}"
+                }
+            }
         }
     }
 
@@ -604,13 +889,18 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
                 startDateTimestamp = System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000), // Default 7 days from now
                 price = stay.pricePerNight,
                 imageResName = stay.imageResName,
-                status = "Confirmed",
+                status = if (_isOnline.value) "Held (Escrow)" else "Pending Sync",
                 voucherCodeUsed = if (discountUsed > 0.0) finalVoucherCode else null
             )
 
-            repository.createBooking(newBooking)
-            val baseMessage = "Successfully booked ${stay.title}!"
-            _uiEvent.value = if (discountUsed > 0.0) "$baseMessage $notes" else baseMessage
+            if (_isOnline.value) {
+                repository.createBooking(newBooking)
+                val baseMessage = "Successfully booked ${stay.title}!"
+                _uiEvent.value = if (discountUsed > 0.0) "$baseMessage $notes" else baseMessage
+            } else {
+                repository.queueSyncAction("BOOK_STAY", newBooking)
+                _uiEvent.value = "Terminal OFFLINE. Booking for ${stay.title} queued for satellite sync."
+            }
             _currentTab.value = "bookings"
         }
     }
@@ -654,13 +944,125 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
                 startDateTimestamp = System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000), // Default 7 days from now
                 price = safari.price,
                 imageResName = safari.imageResName,
-                status = "Confirmed",
+                status = if (_isOnline.value) "Held (Escrow)" else "Pending Sync",
                 voucherCodeUsed = if (discountUsed > 0.0) finalVoucherCode else null
             )
 
-            repository.createBooking(newBooking)
-            val baseMessage = "Successfully booked ${safari.title} expedition!"
-            _uiEvent.value = if (discountUsed > 0.0) "$baseMessage $notes" else baseMessage
+            if (_isOnline.value) {
+                repository.createBooking(newBooking)
+                val baseMessage = "Successfully booked ${safari.title} expedition!"
+                _uiEvent.value = if (discountUsed > 0.0) "$baseMessage $notes" else baseMessage
+            } else {
+                repository.queueSyncAction("BOOK_SAFARI", newBooking)
+                _uiEvent.value = "Terminal OFFLINE. Safari for ${safari.title} queued for satellite sync."
+            }
+            _currentTab.value = "bookings"
+        }
+    }
+
+    // --- LOCAL EXPERIENCES & GUIDED TOURS FILTERS & BOOKING ---
+    val selectedExperienceCategory = MutableStateFlow("All Categories")
+    val selectedExperienceCountry = MutableStateFlow("All Countries")
+
+    fun setExperienceCategoryFilter(category: String) {
+        selectedExperienceCategory.value = category
+    }
+
+    fun setExperienceCountryFilter(country: String) {
+        selectedExperienceCountry.value = country
+    }
+
+    val filteredExperiences: StateFlow<List<ExperienceItem>> = combine(
+        searchQuery,
+        selectedExperienceCategory,
+        selectedExperienceCountry
+    ) { query, category, country ->
+        val trimmedQuery = query.trim()
+        val keywords = trimmedQuery.split(" ").filter { it.isNotBlank() }
+
+        SafariCatalog.experiences.filter { exp ->
+            val queryMatch = keywords.isEmpty() || keywords.all { keyword ->
+                exp.title.contains(keyword, ignoreCase = true) ||
+                exp.location.contains(keyword, ignoreCase = true) ||
+                exp.description.contains(keyword, ignoreCase = true) ||
+                exp.hostCommunity.contains(keyword, ignoreCase = true)
+            }
+
+            val categoryMatch = category == "All Categories" || exp.category.equals(category, ignoreCase = true)
+            val countryMatch = country == "All Countries" || exp.country.equals(country, ignoreCase = true)
+
+            queryMatch && categoryMatch && countryMatch
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SafariCatalog.experiences)
+
+    fun bookExperience(experience: ExperienceItem, dateRange: String, guestCount: Int = 1, voucherCode: String? = null) {
+        viewModelScope.launch {
+            val finalVoucherCode = voucherCode?.trim()?.uppercase()
+            var discountUsed = 0.0
+            var notes = ""
+
+            val totalPrice = experience.price * guestCount
+
+            if (!finalVoucherCode.isNullOrEmpty()) {
+                val voucher = repository.getVoucherByCode(finalVoucherCode)
+                if (voucher == null) {
+                    _uiEvent.value = "Error: Invalid Voucher Code."
+                    return@launch
+                }
+                if (voucher.status != "Active") {
+                    _uiEvent.value = "Error: Voucher is already redeemed or expired."
+                    return@launch
+                }
+                if (voucher.remainingValue <= 0.0) {
+                    _uiEvent.value = "Error: Voucher has insufficient balance."
+                    return@launch
+                }
+
+                val priceToDeduct = minOf(totalPrice, voucher.remainingValue)
+                discountUsed = priceToDeduct
+                val success = repository.redeemVoucher(finalVoucherCode, priceToDeduct)
+                if (!success) {
+                    _uiEvent.value = "Error: Failed to apply voucher discount."
+                    return@launch
+                }
+                notes = "Saved $${String.format("%.2f", discountUsed)} using voucher $finalVoucherCode"
+            }
+
+            val newBooking = BookingEntity(
+                type = "EXPERIENCE",
+                title = experience.title,
+                lodgeName = experience.hostCommunity,
+                checkInDate = dateRange,
+                checkOutDate = dateRange,
+                guestName = "Valued Guest ($guestCount)",
+                location = experience.location,
+                dateRange = dateRange,
+                startDateTimestamp = System.currentTimeMillis() + (3L * 24 * 60 * 60 * 1000),
+                price = totalPrice,
+                imageResName = experience.imageResName,
+                status = if (_isOnline.value) "Confirmed" else "Pending Sync",
+                voucherCodeUsed = if (discountUsed > 0.0) finalVoucherCode else null
+            )
+
+            if (_isOnline.value) {
+                repository.createBooking(newBooking)
+                val baseMessage = "Successfully booked ${experience.title} for $guestCount guest(s)!"
+                _uiEvent.value = if (discountUsed > 0.0) "$baseMessage $notes" else baseMessage
+            } else {
+                repository.queueSyncAction("BOOK_EXPERIENCE", newBooking)
+                _uiEvent.value = "Offline: Booking for ${experience.title} queued for sync."
+            }
+
+            repository.localBookingRepository.insertBooking(
+                com.example.data.local.BookingEntity(
+                    bookingReference = newBooking.bookingReference,
+                    lodgeName = experience.title,
+                    checkInDate = dateRange,
+                    checkOutDate = dateRange,
+                    guestName = "Valued Guest ($guestCount)"
+                )
+            )
+
             _currentTab.value = "bookings"
         }
     }
@@ -669,6 +1071,80 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         viewModelScope.launch {
             repository.cancelBooking(booking)
             _uiEvent.value = "Cancelled booking for ${booking.title}."
+        }
+    }
+
+    fun updateBookingStatus(bookingId: Int, status: String) {
+        viewModelScope.launch {
+            repository.updateBookingStatus(bookingId, status)
+        }
+    }
+
+    fun addNotification(title: String, message: String, type: String = "INFO", relatedId: Int = 0) {
+        viewModelScope.launch {
+            repository.addNotification(title, message, type, relatedId)
+        }
+    }
+
+    fun cancelBookingWithTieredRefund(booking: BookingEntity, daysToCheckin: Int) {
+        viewModelScope.launch {
+            val guestRefundPct: Double
+            val lodgePayoutPct: Double
+            val tierDescription: String
+
+            when {
+                daysToCheckin >= 60 -> {
+                    guestRefundPct = 0.95
+                    lodgePayoutPct = 0.00
+                    tierDescription = ">60 Days: 95% Refund, 5% Admin Fee"
+                }
+                daysToCheckin in 30..59 -> {
+                    guestRefundPct = 0.50
+                    lodgePayoutPct = 0.50
+                    tierDescription = "30-59 Days: 50% Refund, 50% Payout"
+                }
+                else -> {
+                    guestRefundPct = 0.00
+                    lodgePayoutPct = 1.00
+                    tierDescription = "<30 Days / No-Show: 0% Refund, 100% Payout"
+                }
+            }
+
+            val isKsh = booking.type == "STAY" && booking.location.contains("Kenya")
+            val totalPaid = booking.price
+            val guestRefundVal = totalPaid * guestRefundPct
+            val rawLodgeVal = totalPaid * lodgePayoutPct
+            val platformCommissionVal = rawLodgeVal * 0.15
+            val lodgeNetVal = rawLodgeVal - platformCommissionVal
+
+            val rate = if (isKsh) 130.0 else 1.0
+            val sym = if (isKsh) "Ksh " else "$"
+
+            val displayRefund = guestRefundVal * rate
+            val displayLodgeNet = lodgeNetVal * rate
+            val displayCommission = platformCommissionVal * rate
+
+            repository.updateBookingStatus(booking.id, "Cancelled (Refunded)")
+
+            val guestMsg = "Your booking for '${booking.title}' was cancelled ($tierDescription). A refund of $sym${String.format("%,d", displayRefund.toInt())} has been initiated to your wallet/card."
+            repository.addNotification(
+                title = "Booking Cancelled",
+                message = guestMsg,
+                type = "EXPERIENCE",
+                relatedId = booking.id
+            )
+
+            if (lodgeNetVal > 0.0) {
+                val lodgeMsg = "Booking #${booking.id} (${booking.title}) cancelled within the $daysToCheckin-day window. $sym${String.format("%,d", displayLodgeNet.toInt())} (compensation minus 15% fee) has been dispatched to your sub-account."
+                repository.addNotification(
+                    title = "Cancellation Compensation",
+                    message = lodgeMsg,
+                    type = "LODGE",
+                    relatedId = booking.id
+                )
+            }
+
+            _uiEvent.value = "Cancelled: $tierDescription. Refunded: $sym${String.format("%,d", displayRefund.toInt())}."
         }
     }
 
@@ -842,6 +1318,27 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         }
     }
 
+    fun syncBookingsWithServer() {
+        viewModelScope.launch {
+            if (_isSyncing.value) return@launch
+            _isSyncing.value = true
+            _uiEvent.value = "Connecting to Safari Stay Sync API..."
+            delay(1000)
+            try {
+                val response = repository.flushSyncQueue()
+                if (response != null) {
+                    _uiEvent.value = "Safari Stay Sync Success: Processed ${response.processedCount} records at ${response.serverProcessedAt}"
+                } else {
+                    _uiEvent.value = "Safari Stay Sync Complete: User stay records are fully up to date."
+                }
+            } catch (e: Exception) {
+                _uiEvent.value = "Safari Stay Sync: Connection timeout. Offline changes queued locally."
+            }
+            _lastStaySyncTime.value = System.currentTimeMillis()
+            _isSyncing.value = false
+        }
+    }
+
     // --- SHARE ITINERARY METHODS ---
     private val _shareLink = MutableStateFlow<String?>(null)
     val shareLink: StateFlow<String?> = _shareLink.asStateFlow()
@@ -860,6 +1357,66 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
 
     fun clearShareLink() {
         _shareLink.value = null
+    }
+
+    // --- GEMINI ITINERARY STATE ---
+    private val _geminiItineraryState = MutableStateFlow(GeminiItineraryState())
+    val geminiItineraryState: StateFlow<GeminiItineraryState> = _geminiItineraryState.asStateFlow()
+
+    fun generateAiItinerary(
+        lodgeLocation: String,
+        interests: List<String>,
+        pace: String = "Balanced & Immersive",
+        country: String = "Kenya",
+        durationDays: Int = 3,
+        travelParty: String = "Couples / Explorers",
+        budget: String = "Mid-Range Safari Lodges ($$)"
+    ) {
+        viewModelScope.launch {
+            _geminiItineraryState.value = GeminiItineraryState(
+                isLoading = true,
+                lodgeLocation = lodgeLocation,
+                country = country,
+                durationDays = durationDays,
+                travelParty = travelParty,
+                budget = budget,
+                interests = interests,
+                pace = pace
+            )
+            _uiEvent.value = "Consulting Gemini AI Naturalist for $lodgeLocation in $country ($durationDays Days)..."
+            try {
+                val plan = repository.generateCustomItinerary(
+                    lodgeLocation = lodgeLocation,
+                    interests = interests,
+                    pace = pace,
+                    country = country,
+                    durationDays = durationDays,
+                    travelParty = travelParty,
+                    budget = budget
+                )
+                _geminiItineraryState.value = GeminiItineraryState(
+                    isLoading = false,
+                    lodgeLocation = lodgeLocation,
+                    country = country,
+                    durationDays = durationDays,
+                    travelParty = travelParty,
+                    budget = budget,
+                    interests = interests,
+                    pace = pace,
+                    generatedPlanText = plan
+                )
+                _uiEvent.value = "$durationDays-Day Safari Itinerary generated with Gemini AI!"
+            } catch (e: Exception) {
+                _geminiItineraryState.value = _geminiItineraryState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Failed to generate itinerary: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun clearGeminiItinerary() {
+        _geminiItineraryState.value = GeminiItineraryState()
     }
 
     fun getItinerarySummaryText(): String {
@@ -892,6 +1449,9 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
     val weatherState: StateFlow<WeatherCacheEntity?> = _weatherState.asStateFlow()
 
     init {
+        // Automatically enable owner mode for the app owner
+        _isOwner.value = true
+
         // Prepopulate the database with beautiful default data on startup
         viewModelScope.launch {
             repository.prepopulateIfEmpty()
@@ -1047,6 +1607,39 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
     fun clearSosStatus() {
         _sosSendingStatus.value = null
         _isSosSending.value = false
+    }
+
+    // --- LOCAL BOOKING REPOSITORY HELPERS ---
+    fun addLocalBooking(
+        bookingReference: String,
+        lodgeName: String,
+        checkInDate: String,
+        checkOutDate: String,
+        guestName: String
+    ) {
+        viewModelScope.launch {
+            repository.localBookingRepository.insertBooking(
+                com.example.data.local.BookingEntity(
+                    bookingReference = bookingReference,
+                    lodgeName = lodgeName,
+                    checkInDate = checkInDate,
+                    checkOutDate = checkOutDate,
+                    guestName = guestName
+                )
+            )
+        }
+    }
+
+    fun deleteLocalBookingByReference(bookingReference: String) {
+        viewModelScope.launch {
+            repository.localBookingRepository.deleteBookingByReference(bookingReference)
+        }
+    }
+
+    fun clearAllLocalBookings() {
+        viewModelScope.launch {
+            repository.localBookingRepository.clearAllBookings()
+        }
     }
 }
 

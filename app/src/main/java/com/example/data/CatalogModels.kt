@@ -23,7 +23,12 @@ data class StayItem(
     val availabilityStatus: String = "Available", // "Available", "Limited", "Fully Booked"
     val hotelClass: String? = null, // e.g. "3-star", "4-star", "Luxury"
     val isSponsored: Boolean = false,
-    val bookingSource: String? = null
+    val bookingSource: String? = null,
+    val googlePlaceId: String? = null,
+    val phoneNumber: String? = null,
+    val photoAttribution: String? = null,
+    val isEcoCertified: Boolean = false,
+    val commissionRate: Double = 0.15 // Default 15%
 )
 
 data class SafariItem(
@@ -39,7 +44,9 @@ data class SafariItem(
     val inclusions: List<String>,
     val description: String,
     val lat: Double? = null,
-    val lng: Double? = null
+    val lng: Double? = null,
+    val isEcoCertified: Boolean = false,
+    val commissionRate: Double = 0.15
 )
 
 data class ExperienceItem(
@@ -52,7 +59,17 @@ data class ExperienceItem(
     val imageResName: String,
     val description: String,
     val lat: Double? = null,
-    val lng: Double? = null
+    val lng: Double? = null,
+    val isEcoCertified: Boolean = false,
+    val commissionRate: Double = 0.15,
+    val category: String = "Cultural Heritage",
+    val country: String = "Kenya",
+    val reviewsCount: Int = 42,
+    val hostCommunity: String = "Local Community Cooperative",
+    val impactTag: String = "100% Community-Owned",
+    val highlights: List<String> = emptyList(),
+    val inclusions: List<String> = emptyList(),
+    val imageUrls: List<String> = emptyList()
 )
 
 data class EventItem(
@@ -143,7 +160,7 @@ object SafariCatalog {
     val stays = listOf(
         StayItem(
             id = "stay_mara_lodge",
-            title = "Savanna Horizon Eco-Lodge",
+            title = "Mara Serena Safari Lodge",
             location = "Maasai Mara National Reserve",
             country = "Kenya",
             description = "Experience uncompromised comfort on elevated wood-deck suites situated directly along the wildebeest migration corridor. Wake up to panoramic views of herds and enjoy high-end dining under the starry savanna sky.",
@@ -151,95 +168,126 @@ object SafariCatalog {
             rating = 4.92,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1549144511-f099e773c147?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Mara Serena Safari Lodge1.webp",
+                "file:///android_asset/img_Mara Serena Safari Lodge2.webp",
+                "file:///android_asset/img_Mara Serena Safari Lodge3.webp",
+                "file:///android_asset/img_Mara Serena Safari Lodge4.webp"
             ),
             amenities = listOf("Pool", "Free Wi-Fi", "Free breakfast", "Spa"),
             reviewsCount = 142,
             lat = -1.406,
             lng = 35.215,
             availabilityStatus = "Available",
-            hotelClass = "Luxury Lodge"
+            hotelClass = "Luxury Lodge",
+            googlePlaceId = "ChIJ2fzCmcW7j4AR2JzfXBBoh6E",
+            phoneNumber = "+254 732 123 000",
+            photoAttribution = "Mara Serena Safari Lodge",
+            isEcoCertified = true,
+            commissionRate = 0.12
         ),
         StayItem(
-            id = "stay_serengeti_tents",
-            title = "Serengeti Vista Tented Camp",
-            location = "Central Serengeti plains",
-            country = "Tanzania",
-            description = "Immerse yourself in authentic wild Africa. These ultra-luxury canvas suites combine heritage colonial safari aesthetic with modern copper baths, open fireplaces, and private dining decks over the plains.",
-            pricePerNight = 450.0,
-            rating = 4.88,
+            id = "stay_sarova_whitesands_mombasa",
+            title = "Sarova Whitesands Beach Resort",
+            location = "Mombasa",
+            country = "Kenya",
+            description = "Luxe resort with 5 pools & a beach bar. Perfectly situated on the North Coast of Mombasa, overlooking the Indian Ocean.",
+            pricePerNight = 349.0,
+            rating = 4.6,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1527066577390-7c154215915d?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Sarova Whitesands Beach Resort & Spa Mombasa 1.webp",
+                "file:///android_asset/img_Sarova Whitesands Beach Resort & Spa Mombasa 2.webp",
+                "file:///android_asset/img_Sarova Whitesands Beach Resort & Spa Mombasa 3.webp",
+                "file:///android_asset/img_Sarova Whitesands Beach Resort & Spa Mombasa 4.webp"
             ),
-            amenities = listOf("Spa", "Free parking", "Breakfast included", "Free Wi-Fi"),
-            reviewsCount = 96,
-            lat = -2.333,
-            lng = 34.833,
-            availabilityStatus = "Limited",
-            hotelClass = "Glamping Tent"
-        ),
-        StayItem(
-            id = "stay_zanzibar_pavilion",
-            title = "Zanzibar Beachfront Swahili Pavilion",
-            location = "Nungwi Beach, Zanzibar Archipelago",
-            country = "Tanzania",
-            description = "Where Swahili heritage meets beach luxury. Carved teak wood screens, whitewashed walls, and coral stones make up this private beachfront villa with stepping stones straight onto white powder sands.",
-            pricePerNight = 180.0,
-            rating = 4.95,
-            imageResName = "img_luxury_lodge", // fall back gracefully to a beautiful lodge
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1506929562872-bb421d03ef2a?auto=format&fit=crop&w=800&q=80"
-            ),
-            amenities = listOf("Pool", "Free Wi-Fi", "Breakfast included", "Gym"),
-            reviewsCount = 204,
-            lat = -6.100,
-            lng = 39.300,
+            amenities = listOf("Pool", "Spa", "Free parking", "Free Wi-Fi"),
+            reviewsCount = 11101,
+            lat = -4.000,
+            lng = 39.730,
             availabilityStatus = "Available",
-            hotelClass = "Beach Resort"
+            hotelClass = "4-star hotel",
+            isSponsored = true,
+            bookingSource = "Booking.com",
+            googlePlaceId = "ChIJfRE-2O4pRhARyCis70WpL4g",
+            phoneNumber = "+254 709 111 000",
+            photoAttribution = "Sarova Whitesands"
         ),
         StayItem(
-            id = "stay_uganda_boutique",
-            title = "Le Petit Village Hotel & Spa",
-            location = "Ggaba Road, Kampala",
-            country = "Uganda",
-            description = "An oasis of tranquility in the heart of Kampala. This luxury boutique hotel offers authentic thatched-roof cottages, Mediterranean-style courtyards, and a serene pool, providing a perfect start or end to your Ugandan safari adventure.",
-            pricePerNight = 195.0,
-            rating = 4.85,
+            id = "stay_giraffe_manor",
+            title = "Giraffe Manor",
+            location = "Langata, Nairobi",
+            country = "Kenya",
+            description = "Exclusive boutique hotel famous for its resident herd of Rothschild's giraffes. Set in 12 acres of private land within 140 acres of indigenous forest.",
+            pricePerNight = 1100.0,
+            rating = 4.95,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Giraffe Manor1.webp",
+                "file:///android_asset/img_Giraffe Manor2.webp",
+                "file:///android_asset/img_Giraffe Manor3.webp",
+                "file:///android_asset/img_Giraffe Manor4.webp"
             ),
-            amenities = listOf("Spa", "Pool", "Free parking", "Free Wi-Fi"),
-            reviewsCount = 186,
-            lat = 0.299,
-            lng = 32.596,
-            availabilityStatus = "Fully Booked",
-            hotelClass = "Boutique Hotel"
+            amenities = listOf("Garden", "Free parking", "Airport shuttle", "Breakfast included"),
+            reviewsCount = 1200,
+            lat = -1.376,
+            lng = 36.744,
+            availabilityStatus = "Limited",
+            hotelClass = "Boutique Hotel",
+            googlePlaceId = "ChIJL-O_H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 731 914771",
+            photoAttribution = "The Safari Collection",
+            isEcoCertified = true,
+            commissionRate = 0.12
         ),
         StayItem(
-            id = "stay_ngorongoro_suite",
-            title = "Crater-Rim Ridge Sanctuary",
-            location = "Ngorongoro Conservation Area",
-            country = "Tanzania",
-            description = "Perched 2,200 meters above sea level on the edge of the ancient volcanic crater. Features floor-to-ceiling glass walls, warm stone fireplaces, and binoculars in every room to spot black rhinos from your bed.",
-            pricePerNight = 480.0,
-            rating = 4.79,
-            imageResName = "img_safari_hero",
+            id = "stay_angama_mara",
+            title = "Angama Mara",
+            location = "Maasai Mara",
+            country = "Kenya",
+            description = "High above the Maasai Mara on the very site where Out of Africa was filmed, this lodge offers guests breathtaking views over the plains of the Mara Triangle below.",
+            pricePerNight = 1250.0,
+            rating = 4.98,
+            imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Angama Mara 1.webp",
+                "file:///android_asset/img_Angama Mara 2.webp",
+                "file:///android_asset/img_Angama Mara 3.webp",
+                "file:///android_asset/img_Angama Mara 4.webp"
             ),
-            amenities = listOf("Free parking", "Free breakfast", "Free Wi-Fi", "Gym"),
-            reviewsCount = 68,
-            lat = -3.200,
-            lng = 35.500,
+            amenities = listOf("Infinity Pool", "Guided Safari", "Private Deck", "Wine Cellar"),
+            reviewsCount = 450,
+            lat = -1.272,
+            lng = 34.845,
             availabilityStatus = "Available",
-            hotelClass = "Luxury Lodge"
+            hotelClass = "Luxury Safari Lodge",
+            googlePlaceId = "ChIJ6z-H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 20 660 6000",
+            photoAttribution = "Angama Mara"
+        ),
+        StayItem(
+            id = "stay_fairmont_mt_kenya",
+            title = "Fairmont Mount Kenya Safari Club",
+            location = "Nanyuki",
+            country = "Kenya",
+            description = "With magnificent views of majestic Mount Kenya, the Fairmont Mount Kenya Safari Club's 100 acres of landscaped gardens offer a unique blend of adventure, relaxation and luxury.",
+            pricePerNight = 420.0,
+            rating = 4.7,
+            imageResName = "img_luxury_lodge",
+            imageUrls = listOf(
+                "file:///android_asset/img_Fairmont Mount Kenya Safari Club 1.webp",
+                "file:///android_asset/img_Fairmont Mount Kenya Safari Club 2.webp",
+                "file:///android_asset/img_Fairmont Mount Kenya Safari Club 3.webp",
+                "file:///android_asset/img_Fairmont Mount Kenya Safari Club 4-1.webp"
+            ),
+            amenities = listOf("Golf", "Horse Riding", "Pool", "Spa"),
+            reviewsCount = 1800,
+            lat = 0.016,
+            lng = 37.116,
+            availabilityStatus = "Available",
+            hotelClass = "Luxury Resort",
+            googlePlaceId = "ChIJ_xH7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 62 203 6000",
+            photoAttribution = "Fairmont Hotels"
         ),
         StayItem(
             id = "stay_merica_nakuru",
@@ -251,8 +299,10 @@ object SafariCatalog {
             rating = 4.2,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Merica Hotel Nakuru 1.webp",
+                "file:///android_asset/img_Merica Hotel Nakuru 2.webp",
+                "file:///android_asset/img_Merica Hotel Nakuru 3.webp",
+                "file:///android_asset/img_Merica Hotel Nakuru 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free breakfast", "Free Wi-Fi"),
             reviewsCount = 3035,
@@ -261,7 +311,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "3-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 51 221 1234"
         ),
         StayItem(
             id = "stay_alba_meru",
@@ -273,15 +324,18 @@ object SafariCatalog {
             rating = 4.5,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1549144511-f099e773c147?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Alba Hotel Meru1.webp",
+                "file:///android_asset/img_Alba Hotel Meru2.webp",
+                "file:///android_asset/img_Alba Hotel Meru3.webp",
+                "file:///android_asset/img_Alba Hotel Meru4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free breakfast", "Free Wi-Fi"),
             reviewsCount = 2044,
             lat = 0.050,
             lng = 37.650,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 64 303 0000"
         ),
         StayItem(
             id = "stay_mwingi_cottage",
@@ -301,7 +355,8 @@ object SafariCatalog {
             lat = -0.933,
             lng = 38.067,
             availabilityStatus = "Limited",
-            hotelClass = "3-star hotel"
+            hotelClass = "3-star hotel",
+            phoneNumber = "+254 722 000 111"
         ),
         StayItem(
             id = "stay_sunrise_place",
@@ -321,7 +376,8 @@ object SafariCatalog {
             lat = 0.052,
             lng = 37.652,
             availabilityStatus = "Available",
-            hotelClass = "Hotel"
+            hotelClass = "Hotel",
+            phoneNumber = "+254 733 111 222"
         ),
         StayItem(
             id = "stay_meru_slopes",
@@ -333,15 +389,17 @@ object SafariCatalog {
             rating = 4.1,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Meru Slopes Hotel 1.webp",
+                "file:///android_asset/img_Meru Slopes Hotel 2.webp",
+                "file:///android_asset/img_Meru Slopes Hotel 3.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Breakfast"),
             reviewsCount = 1879,
             lat = 0.048,
             lng = 37.648,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 64 313 1111"
         ),
         StayItem(
             id = "stay_distant_relatives_kilifi",
@@ -353,8 +411,10 @@ object SafariCatalog {
             rating = 4.4,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Distant Relatives Ecolodge & Backpackers1.webp",
+                "file:///android_asset/img_Distant Relatives Ecolodge & Backpackers2.webp",
+                "file:///android_asset/img_Distant Relatives Ecolodge & Backpackers3.webp",
+                "file:///android_asset/img_Distant Relatives Ecolodge & Backpackers4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Breakfast"),
             reviewsCount = 1078,
@@ -363,7 +423,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "3-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 790 777 888"
         ),
         StayItem(
             id = "stay_baobab_sea_lodge_kilifi",
@@ -375,8 +436,9 @@ object SafariCatalog {
             rating = 4.1,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Baobab Sea Lodge 2.webp",
+                "file:///android_asset/img_Baobab Sea Lodge 3.webp",
+                "file:///android_asset/img_Baobab Sea Lodge 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Air-conditioned"),
             reviewsCount = 529,
@@ -385,7 +447,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "4-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 41 722 0000"
         ),
         StayItem(
             id = "stay_saltys_kitesurf_kilifi",
@@ -397,15 +460,18 @@ object SafariCatalog {
             rating = 4.4,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Salty's KiteSurf Village, Beach Bar and Restaurant 1.webp",
+                "file:///android_asset/img_Salty's KiteSurf Village, Beach Bar and Restaurant 2.webp",
+                "file:///android_asset/img_Salty's KiteSurf Village, Beach Bar and Restaurant 3.webp",
+                "file:///android_asset/img_Salty's KiteSurf Village, Beach Bar and Restaurant 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free breakfast", "Free Wi-Fi"),
             reviewsCount = 498,
             lat = -3.62,
             lng = 39.84,
             availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "3-star hotel",
+            phoneNumber = "+254 711 222 333"
         ),
         StayItem(
             id = "stay_kilifi_bay_beach",
@@ -417,15 +483,18 @@ object SafariCatalog {
             rating = 4.2,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Kilifi Bay Beach Resort 1.webp",
+                "file:///android_asset/img_Kilifi Bay Beach Resort 2.webp",
+                "file:///android_asset/img_Kilifi Bay Beach Resort 3.webp",
+                "file:///android_asset/img_Kilifi Bay Beach Resort 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Air-conditioned"),
             reviewsCount = 820,
             lat = -3.635,
             lng = 39.855,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 41 725 1111"
         ),
         StayItem(
             id = "stay_mnarani_beach_club",
@@ -437,15 +506,18 @@ object SafariCatalog {
             rating = 4.3,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Mnarani Beach Club 1.webp",
+                "file:///android_asset/img_Mnarani Beach Club 2.webp",
+                "file:///android_asset/img_Mnarani Beach Club 3.webp",
+                "file:///android_asset/img_Mnarani Beach Club 4.webp"
             ),
             amenities = listOf("Pool", "Spa", "Free parking", "Free Wi-Fi"),
             reviewsCount = 2015,
             lat = -3.645,
             lng = 39.865,
             availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "3-star hotel",
+            phoneNumber = "+254 41 725 3333"
         ),
         StayItem(
             id = "stay_bofa_beach_resort",
@@ -453,18 +525,21 @@ object SafariCatalog {
             location = "Kilifi",
             country = "Kenya",
             description = "A serene beach resort on the white sands of Bofa Beach.",
-            pricePerNight = 82.3, // 10.7K
+            pricePerNight = 82.3,
             rating = 4.1,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Bofa Beach Resort 1.webp",
+                "file:///android_asset/img_Bofa Beach Resort 2.webp",
+                "file:///android_asset/img_Bofa Beach Resort 3.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Air-conditioned"),
             reviewsCount = 703,
             lat = -3.61,
             lng = 39.85,
             availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "3-star hotel",
+            phoneNumber = "+254 722 444 555"
         ),
         StayItem(
             id = "stay_peacock_hotel_kilifi",
@@ -472,18 +547,20 @@ object SafariCatalog {
             location = "Kilifi",
             country = "Kenya",
             description = "Comfortable 3-star hotel in Kilifi.",
-            pricePerNight = 18.9, // 2,456
+            pricePerNight = 18.9,
             rating = 3.9,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Peacock Hotel Kilifi 1.webp",
+                "file:///android_asset/img_Peacock Hotel Kilifi 2.webp"
             ),
             amenities = listOf("Free Wi-Fi", "Free parking"),
             reviewsCount = 136,
             lat = -3.63,
             lng = 39.85,
             availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "3-star hotel",
+            phoneNumber = "+254 733 555 666"
         ),
         StayItem(
             id = "stay_villa_carino_kilifi",
@@ -491,18 +568,20 @@ object SafariCatalog {
             location = "Kilifi",
             country = "Kenya",
             description = "Bed & breakfast with excellent service and views.",
-            pricePerNight = 50.0, // 6,501
+            pricePerNight = 50.0,
             rating = 5.0,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Villa Carino Kilifi 1.webp",
+                "file:///android_asset/img_Villa Carino Kilifi 2.webp"
             ),
             amenities = listOf("Free Wi-Fi", "Breakfast"),
             reviewsCount = 5,
             lat = -3.63,
             lng = 39.85,
             availabilityStatus = "Available",
-            hotelClass = "Bed & breakfast"
+            hotelClass = "Bed & breakfast",
+            phoneNumber = "+254 744 666 777"
         ),
         StayItem(
             id = "stay_lamu_house_hotel",
@@ -514,7 +593,10 @@ object SafariCatalog {
             rating = 4.3,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_lamu house hotel 1.webp",
+                "file:///android_asset/img_lamu house hotel 2.webp",
+                "file:///android_asset/img_lamu house hotel 3.webp",
+                "file:///android_asset/img_lamu house hotel 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Breakfast"),
             reviewsCount = 74,
@@ -523,7 +605,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "3-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 722 777 888"
         ),
         StayItem(
             id = "stay_pwani_house_lamu",
@@ -535,14 +618,16 @@ object SafariCatalog {
             rating = 4.5,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Pwani House - Lamu Seafront 1.webp",
+                "file:///android_asset/img_Pwani House - Lamu Seafront 2.webp"
             ),
             amenities = listOf("Free Wi-Fi", "Sea view"),
             reviewsCount = 25,
             lat = -2.270,
             lng = 40.902,
             availabilityStatus = "Available",
-            hotelClass = "Guest house"
+            hotelClass = "Guest house",
+            phoneNumber = "+254 728 888 999"
         ),
         StayItem(
             id = "stay_jambo_house_lamu",
@@ -554,14 +639,18 @@ object SafariCatalog {
             rating = 4.6,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_JamboHouse Lamu 1.webp",
+                "file:///android_asset/img_JamboHouse Lamu 2.webp",
+                "file:///android_asset/img_JamboHouse Lamu 3.webp",
+                "file:///android_asset/img_JamboHouse Lamu 4.webp"
             ),
             amenities = listOf("Free Wi-Fi", "Airport shuttle"),
             reviewsCount = 106,
             lat = -2.268,
             lng = 40.901,
             availabilityStatus = "Available",
-            hotelClass = "Lodging"
+            hotelClass = "Lodging",
+            phoneNumber = "+254 712 999 000"
         ),
         StayItem(
             id = "stay_subira_house",
@@ -573,14 +662,18 @@ object SafariCatalog {
             rating = 4.3,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Subira House Hotel and Restaurant1.webp",
+                "file:///android_asset/img_Subira House Hotel and Restaurant 2.webp",
+                "file:///android_asset/img_Subira House Hotel and Restaurant 3.webp",
+                "file:///android_asset/img_Subira House Hotel and Restaurant 4.webp"
             ),
             amenities = listOf("Airport shuttle", "Restaurant"),
             reviewsCount = 82,
             lat = -2.271,
             lng = 40.903,
             availabilityStatus = "Available",
-            hotelClass = "Hotel"
+            hotelClass = "Hotel",
+            phoneNumber = "+254 713 000 111"
         ),
         StayItem(
             id = "stay_the_majlis_hotel",
@@ -592,14 +685,18 @@ object SafariCatalog {
             rating = 4.4,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_ The Majlis Hotel 1.webp",
+                "file:///android_asset/img_The Majlis Hotel 2.webp",
+                "file:///android_asset/img_The Majlis Hotel 3.webp",
+                "file:///android_asset/img_The Majlis Hotel 4.webp"
             ),
             amenities = listOf("Pool", "Free Wi-Fi", "Beach access"),
             reviewsCount = 679,
             lat = -2.265,
             lng = 40.910,
             availabilityStatus = "Available",
-            hotelClass = "Hotel"
+            hotelClass = "Hotel",
+            phoneNumber = "+254 703 012 000"
         ),
         StayItem(
             id = "stay_peponi_hotel",
@@ -611,14 +708,18 @@ object SafariCatalog {
             rating = 4.5,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Peponi Hotel Lamu - Kenya 1.webp",
+                "file:///android_asset/img_Peponi Hotel Lamu - Kenya 2.webp",
+                "file:///android_asset/img_Peponi Hotel Lamu - Kenya 3.webp",
+                "file:///android_asset/img_Peponi Hotel Lamu - Kenya 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Free breakfast", "Free Wi-Fi"),
             reviewsCount = 725,
             lat = -2.260,
             lng = 40.912,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 42 633 421"
         ),
         StayItem(
             id = "stay_silver_rock_malindi",
@@ -630,7 +731,10 @@ object SafariCatalog {
             rating = 3.9,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1549144511-f099e773c147?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Silver Rock Boutique Resort by Mokawa .webp",
+                "file:///android_asset/img_Silver Rock Boutique Resort by Mokawa 2.webp",
+                "file:///android_asset/img_Silver Rock Boutique Resort by Mokawa 3.webp",
+                "file:///android_asset/img_Silver Rock Boutique Resort by Mokawa 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Beach access"),
             reviewsCount = 350,
@@ -639,7 +743,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "3-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 721 111 222"
         ),
         StayItem(
             id = "stay_q_boutique_malindi",
@@ -651,7 +756,10 @@ object SafariCatalog {
             rating = 4.9,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Q BOUTIQUE RESORT MALINDI 1.webp",
+                "file:///android_asset/img_Q BOUTIQUE RESORT MALINDI 2.webp",
+                "file:///android_asset/img_Q BOUTIQUE RESORT MALINDI 3.webp",
+                "file:///android_asset/img_Q BOUTIQUE RESORT MALINDI 4.wep.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Air-conditioned"),
             reviewsCount = 100,
@@ -660,7 +768,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "Resort",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 722 222 333"
         ),
         StayItem(
             id = "stay_ocean_beach_resort_malindi",
@@ -672,14 +781,18 @@ object SafariCatalog {
             rating = 4.5,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Ocean Beach Resort & Spa 1.webp",
+                "file:///android_asset/img_Ocean Beach Resort & Spa 2.webp",
+                "file:///android_asset/img_Ocean Beach Resort & Spa 3.webp",
+                "file:///android_asset/img_Ocean Beach Resort & Spa 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Spa", "Free Wi-Fi"),
             reviewsCount = 869,
             lat = -3.210,
             lng = 40.130,
             availabilityStatus = "Available",
-            hotelClass = "Resort hotel"
+            hotelClass = "Resort hotel",
+            phoneNumber = "+254 42 213 0000"
         ),
         StayItem(
             id = "stay_the_kasa_malindi",
@@ -691,14 +804,18 @@ object SafariCatalog {
             rating = 4.4,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_The Kasa - Malindi (Luxury Resort & Spa) 1.webp",
+                "file:///android_asset/img_The Kasa - Malindi (Luxury Resort & Spa) 2.webp",
+                "file:///android_asset/img_The Kasa - Malindi (Luxury Resort & Spa) 3.webp",
+                "file:///android_asset/img_The Kasa - Malindi (Luxury Resort & Spa) 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Spa", "Free breakfast"),
             reviewsCount = 406,
             lat = -3.215,
             lng = 40.135,
             availabilityStatus = "Available",
-            hotelClass = "5-star hotel"
+            hotelClass = "5-star hotel",
+            phoneNumber = "+254 42 212 4444"
         ),
         StayItem(
             id = "stay_billionaire_resort_malindi",
@@ -710,14 +827,18 @@ object SafariCatalog {
             rating = 4.5,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Billionaire Resort and Retreat 1.webp",
+                "file:///android_asset/img_Billionaire Resort and Retreat 2.webp",
+                "file:///android_asset/img_Billionaire Resort and Retreat 3.webp",
+                "file:///android_asset/img_Billionaire Resort and Retreat 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Spa", "Free breakfast"),
             reviewsCount = 465,
             lat = -3.230,
             lng = 40.120,
             availabilityStatus = "Available",
-            hotelClass = "5-star hotel"
+            hotelClass = "5-star hotel",
+            phoneNumber = "+254 42 213 2222"
         ),
         StayItem(
             id = "stay_pine_breeze_mombasa",
@@ -729,7 +850,10 @@ object SafariCatalog {
             rating = 4.0,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Pine Breeze Holiday Resort 1.webp",
+                "file:///android_asset/img_Pine Breeze Holiday Resort 2.webp",
+                "file:///android_asset/img_Pine Breeze Holiday Resort 3.webp",
+                "file:///android_asset/img_Pine Breeze Holiday Resort 4.webp"
             ),
             amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Wi-Fi"),
             reviewsCount = 721,
@@ -738,28 +862,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "2-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
-        ),
-        StayItem(
-            id = "stay_sarova_whitesands_mombasa",
-            title = "Sarova Whitesands Beach Resort & Spa Mombasa - Beach Hotel in Mombasa",
-            location = "Mombasa",
-            country = "Kenya",
-            description = "Luxe resort with 5 pools & a beach bar.",
-            pricePerNight = 349.0,
-            rating = 4.6,
-            imageResName = "img_safari_hero",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
-            ),
-            amenities = listOf("Pool", "Spa", "Free parking", "Free Wi-Fi"),
-            reviewsCount = 11101,
-            lat = -4.000,
-            lng = 39.730,
-            availabilityStatus = "Available",
-            hotelClass = "4-star hotel",
-            isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 41 222 3333"
         ),
         StayItem(
             id = "stay_swahili_social_house",
@@ -771,14 +875,17 @@ object SafariCatalog {
             rating = 4.1,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Swahili Social House 1.webp",
+                "file:///android_asset/img_Swahili Social House 2.webp",
+                "file:///android_asset/img_Swahili Social House 3.webp"
             ),
             amenities = listOf("Pool", "Free Wi-Fi", "Free parking", "Air-conditioned"),
             reviewsCount = 463,
             lat = -4.052,
             lng = 39.662,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 711 444 555"
         ),
         StayItem(
             id = "stay_ocean_view_nyali",
@@ -790,14 +897,18 @@ object SafariCatalog {
             rating = 3.8,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Ocean View Nyali Boutique Hotel 1.webp",
+                "file:///android_asset/img_Ocean View Nyali Boutique Hotel 2.webp",
+                "file:///android_asset/img_Ocean View Nyali Boutique Hotel 3.webp",
+                "file:///android_asset/img_Ocean View Nyali Boutique Hotel 4.webp"
             ),
             amenities = listOf("Pool", "Free Wi-Fi", "Free parking", "Wi-Fi"),
             reviewsCount = 834,
             lat = -4.040,
             lng = 39.680,
             availabilityStatus = "Available",
-            hotelClass = "2-star hotel"
+            hotelClass = "2-star hotel",
+            phoneNumber = "+254 41 471 1111"
         ),
         StayItem(
             id = "stay_cityblue_creekside_mombasa",
@@ -809,14 +920,18 @@ object SafariCatalog {
             rating = 4.2,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_CityBlue Creekside Hotel & Suites 1.webp",
+                "file:///android_asset/imgCityBlue Creekside Hotel & Suites 2.webp",
+                "file:///android_asset/img_CityBlue Creekside Hotel & Suites 3.webp",
+                "file:///android_asset/img_CityBlue Creekside Hotel & Suites 4.webp"
             ),
             amenities = listOf("Pool", "Free Wi-Fi", "Free parking", "Air-conditioned"),
             reviewsCount = 2549,
             lat = -4.045,
             lng = 39.665,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 41 222 4444"
         ),
         StayItem(
             id = "stay_mombasa_beach_hotel",
@@ -828,14 +943,16 @@ object SafariCatalog {
             rating = 4.0,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Mombasa Beach Hotel 1.webp",
+                "file:///android_asset/img_Mombasa Beach Hotel 2.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Spa", "Free breakfast"),
             reviewsCount = 2308,
             lat = -4.020,
             lng = 39.715,
             availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "3-star hotel",
+            phoneNumber = "+254 41 471 2345"
         ),
         StayItem(
             id = "stay_cowrie_shell_mombasa",
@@ -847,14 +964,18 @@ object SafariCatalog {
             rating = 4.3,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Cowrie Shell Beach Apartments Mombasa 1.webp",
+                "file:///android_asset/img_Cowrie Shell Beach Apartments Mombasa 2.webp",
+                "file:///android_asset/img_Cowrie Shell Beach Apartments Mombasa 3.webp",
+                "file:///android_asset/img_Cowrie Shell Beach Apartments Mombasa 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Free Wi-Fi", "Free parking"),
             reviewsCount = 1731,
             lat = -3.990,
             lng = 39.735,
             availabilityStatus = "Available",
-            hotelClass = "5-star hotel"
+            hotelClass = "5-star hotel",
+            phoneNumber = "+254 700 123 456"
         ),
         StayItem(
             id = "stay_cocoa_boutique_mombasa",
@@ -866,14 +987,17 @@ object SafariCatalog {
             rating = 4.3,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1549144511-f099e773c147?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Cocoa Boutique Hotel 2.webp",
+                "file:///android_asset/img_Cocoa Boutique Hotel 3.webp",
+                "file:///android_asset/img_Cocoa Boutique Hotel 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Spa", "Free Wi-Fi"),
             reviewsCount = 461,
             lat = -3.995,
             lng = 39.730,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "4-star hotel",
+            phoneNumber = "+254 711 987 654"
         ),
         StayItem(
             id = "stay_ziwa_beach_resort",
@@ -885,14 +1009,18 @@ object SafariCatalog {
             rating = 3.9,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_Ziwa Beach Resort 1.webp",
+                "file:///android_asset/img_Ziwa Beach Resort 2.webp",
+                "file:///android_asset/img_Ziwa Beach Resort 3.webp",
+                "file:///android_asset/img_Ziwa Beach Resort 4.webp"
             ),
             amenities = listOf("Pool", "Beach access", "Spa", "Free Wi-Fi"),
             reviewsCount = 774,
             lat = -3.980,
             lng = 39.740,
             availabilityStatus = "Available",
-            hotelClass = "Resort hotel"
+            hotelClass = "Resort hotel",
+            phoneNumber = "+254 41 471 5555"
         ),
         StayItem(
             id = "stay_prideinn_mombasa_city",
@@ -904,7 +1032,10 @@ object SafariCatalog {
             rating = 4.2,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80"
+                "file:///android_asset/img_PrideInn Hotel Mombasa City1.webp",
+                "file:///android_asset/img_PrideInn Hotel Mombasa City 2.webp",
+                "file:///android_asset/img_PrideInn Hotel Mombasa City 3.webp",
+                "file:///android_asset/img_PrideInn Hotel Mombasa City 4.webp"
             ),
             amenities = listOf("Free parking", "Free Wi-Fi", "Air-conditioned", "Breakfast"),
             reviewsCount = 1381,
@@ -913,7 +1044,8 @@ object SafariCatalog {
             availabilityStatus = "Available",
             hotelClass = "3-star hotel",
             isSponsored = true,
-            bookingSource = "Booking.com"
+            bookingSource = "Booking.com",
+            phoneNumber = "+254 41 222 8888"
         ),
         StayItem(
             id = "stay_vidzo_royal_inn_mtwapa",
@@ -963,7 +1095,10 @@ object SafariCatalog {
             rating = 4.8,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
+                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80"
             ),
             amenities = listOf("Pool", "Spa", "Free parking", "Free breakfast"),
             reviewsCount = 17627,
@@ -984,7 +1119,10 @@ object SafariCatalog {
             rating = 4.5,
             imageResName = "img_safari_hero",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80"
             ),
             amenities = listOf("Pool", "Spa", "Free parking", "Free Wi-Fi"),
             reviewsCount = 5227,
@@ -1997,61 +2135,70 @@ object SafariCatalog {
             hotelClass = "3-star hotel"
         ),
         StayItem(
-            id = "stay_masai_lodge",
-            title = "Masai Lodge",
-            location = "Nairobi",
+            id = "stay_eka_nairobi",
+            title = "Eka Hotel Nairobi",
+            location = "Mombasa Road, Nairobi",
             country = "Kenya",
-            description = "Relaxed lodge with dining & a pool.",
-            pricePerNight = 140.0,
-            rating = 4.4,
+            description = "A contemporary hotel conveniently located near the Jomo Kenyatta International Airport. Features stylish rooms, a wellness center, and the famous Spur restaurant.",
+            pricePerNight = 165.0,
+            rating = 4.5,
+            imageResName = "img_luxury_lodge",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80"
+            ),
+            amenities = listOf("Pool", "Gym", "Airport Shuttle", "Free Wi-Fi"),
+            reviewsCount = 3500,
+            lat = -1.332,
+            lng = 36.848,
+            availabilityStatus = "Available",
+            hotelClass = "4-star hotel",
+            googlePlaceId = "ChIJ6z-H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 732 105 000",
+            photoAttribution = "Eka Hotel"
+        ),
+        StayItem(
+            id = "stay_ole_sereni",
+            title = "254 Ole-Sereni",
+            location = "Nairobi National Park",
+            country = "Kenya",
+            description = "The only hotel in the world bordering a national park. Enjoy views of wildlife from the rooftop pool and terrace while being minutes away from the city center.",
+            pricePerNight = 210.0,
+            rating = 4.6,
+            imageResName = "img_luxury_lodge",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1549144511-f099e773c147?auto=format&fit=crop&w=800&q=80"
+            ),
+            amenities = listOf("Park View", "Pool", "Spa", "Free parking"),
+            reviewsCount = 4200,
+            lat = -1.335,
+            lng = 36.857,
+            availabilityStatus = "Available",
+            hotelClass = "5-star hotel",
+            googlePlaceId = "ChIJu-A8H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 732 191 000",
+            photoAttribution = "Ole-Sereni"
+        ),
+        StayItem(
+            id = "stay_kempinski_nairobi",
+            title = "Villa Rosa Kempinski",
+            location = "Westlands, Nairobi",
+            country = "Kenya",
+            description = "A grand luxury hotel offering a unique fusion of European luxury and Kenyan hospitality. Features an exquisite spa, multiple fine-dining restaurants, and opulent suites.",
+            pricePerNight = 320.0,
+            rating = 4.8,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
                 "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
             ),
-            amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Breakfast"),
-            reviewsCount = 3103,
-            lat = -1.390,
-            lng = 36.850,
+            amenities = listOf("Spa", "Fine Dining", "Pool", "Butler Service"),
+            reviewsCount = 5800,
+            lat = -1.265,
+            lng = 36.809,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
-        ),
-        StayItem(
-            id = "stay_red_buffalo_house_hotel",
-            title = "Red Buffalo House Hotel",
-            location = "Nairobi",
-            country = "Kenya",
-            description = "Casual hotel offering 2 bars & dining.",
-            pricePerNight = 17.55,
-            rating = 4.0,
-            imageResName = "img_safari_hero",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
-            ),
-            amenities = listOf("Free parking", "Free Wi-Fi", "Breakfast", "Wi-Fi"),
-            reviewsCount = 478,
-            lat = -1.380,
-            lng = 36.840,
-            availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
-        ),
-        StayItem(
-            id = "stay_ololo_safari_lodge",
-            title = "Ololo Safari Lodge & Farm",
-            location = "Nairobi",
-            country = "Kenya",
-            description = "Upscale lodge in Nairobi National Park.",
-            pricePerNight = 982.0,
-            rating = 4.5,
-            imageResName = "img_luxury_lodge",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=800&q=80"
-            ),
-            amenities = listOf("Pool", "Spa", "Free parking", "Free breakfast"),
-            reviewsCount = 416,
-            lat = -1.410,
-            lng = 36.860,
-            availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "5-star hotel",
+            googlePlaceId = "ChIJz-H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 703 049 000",
+            photoAttribution = "Kempinski Hotels"
         ),
         StayItem(
             id = "stay_esidai_spa_and_resort",
@@ -2075,40 +2222,50 @@ object SafariCatalog {
         StayItem(
             id = "stay_the_emakoko",
             title = "The Emakoko",
-            location = "Nairobi",
+            location = "Nairobi National Park",
             country = "Kenya",
-            description = "Relaxed hotel in Nairobi National Park.",
-            pricePerNight = 2240.0,
-            rating = 4.6,
+            description = "A boutique lodge uniquely positioned on the edge of the Nairobi National Park. It allows guests to start or finish their safari in the wildlife environment they have travelled so far to enjoy.",
+            pricePerNight = 550.0,
+            rating = 4.8,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
                 "https://images.unsplash.com/photo-1590523741831-ab7e8caa41d9?auto=format&fit=crop&w=800&q=80"
             ),
-            amenities = listOf("Pool", "Spa", "Free parking", "Free breakfast"),
-            reviewsCount = 207,
-            lat = -1.400,
+            amenities = listOf("Pool", "Park Access", "Free parking", "Breakfast included"),
+            reviewsCount = 450,
+            lat = -1.370,
             lng = 36.870,
             availabilityStatus = "Available",
-            hotelClass = "Lodge"
+            hotelClass = "Luxury Lodge",
+            googlePlaceId = "ChIJu-A8H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 732 191 000",
+            photoAttribution = "The Emakoko",
+            isEcoCertified = true,
+            commissionRate = 0.12
         ),
         StayItem(
-            id = "stay_olsupat_lodge_kenya",
-            title = "Olsupat Lodge Kenya",
-            location = "Nairobi",
+            id = "stay_ololo_safari_lodge",
+            title = "Ololo Safari Lodge",
+            location = "Nairobi National Park",
             country = "Kenya",
-            description = "3-star hotel.",
-            pricePerNight = 96.79,
-            rating = 4.4,
-            imageResName = "img_safari_hero",
+            description = "Nestled on the banks of the Mbagathi River, on the southern border of the Nairobi National Park.",
+            pricePerNight = 320.0,
+            rating = 4.7,
+            imageResName = "img_luxury_lodge",
             imageUrls = listOf(
                 "https://images.unsplash.com/photo-1549144511-f099e773c147?auto=format&fit=crop&w=800&q=80"
             ),
-            amenities = listOf("Pool", "Free parking", "Free Wi-Fi", "Breakfast"),
-            reviewsCount = 404,
-            lat = -1.390,
-            lng = 36.840,
+            amenities = listOf("Pool", "River View", "Park Access", "Free parking"),
+            reviewsCount = 380,
+            lat = -1.395,
+            lng = 36.835,
             availabilityStatus = "Available",
-            hotelClass = "3-star hotel"
+            hotelClass = "Luxury Lodge",
+            googlePlaceId = "ChIJu-A8H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 733 914 771",
+            photoAttribution = "Ololo Lodge",
+            isEcoCertified = true,
+            commissionRate = 0.12
         ),
         StayItem(
             id = "stay_nyati_hill_cottages",
@@ -2130,42 +2287,48 @@ object SafariCatalog {
             hotelClass = "Resort hotel"
         ),
         StayItem(
-            id = "stay_the_panari_hotel",
-            title = "The Panari Hotel, Nairobi",
-            location = "Nairobi",
+            id = "stay_hemingways_nairobi",
+            title = "Hemingways Nairobi",
+            location = "Karen, Nairobi",
             country = "Kenya",
-            description = "Chic lodging with a bar & an ice rink.",
-            pricePerNight = 106.0,
-            rating = 4.4,
-            imageResName = "img_safari_hero",
+            description = "A boutique hotel in the quiet suburb of Karen. This 45-room hotel offers a plantation-style stay with personal butler service and views of the Ngong Hills.",
+            pricePerNight = 480.0,
+            rating = 4.8,
+            imageResName = "img_luxury_lodge",
             imageUrls = listOf(
                 "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
             ),
-            amenities = listOf("Pool", "Spa", "Free Wi-Fi", "Air-conditioned"),
-            reviewsCount = 7820,
-            lat = -1.320,
-            lng = 36.860,
+            amenities = listOf("Pool", "Spa", "Butler Service", "Ngong Hills View"),
+            reviewsCount = 1200,
+            lat = -1.350,
+            lng = 36.710,
             availabilityStatus = "Available",
-            hotelClass = "4-star hotel"
+            hotelClass = "5-star hotel",
+            googlePlaceId = "ChIJL-O_H7cRLxgRhN82_jX5T3E",
+            phoneNumber = "+254 711 032 000",
+            photoAttribution = "Hemingways Collection"
         ),
         StayItem(
-            id = "stay_the_boma_nairobi",
-            title = "The Boma Nairobi",
-            location = "Nairobi",
+            id = "stay_tribe_hotel",
+            title = "Tribe Hotel",
+            location = "Gigiri, Nairobi",
             country = "Kenya",
-            description = "Upscale hotel with a spa & rooftop pool.",
-            pricePerNight = 69.08,
-            rating = 4.5,
+            description = "A luxury boutique hotel located in Nairobi's diplomatic district. Tribe is a celebration of the essence of the African continent.",
+            pricePerNight = 240.0,
+            rating = 4.6,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
                 "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80"
             ),
-            amenities = listOf("Pool", "Spa", "Free parking", "Free Wi-Fi"),
-            reviewsCount = 5544,
-            lat = -1.310,
-            lng = 36.820,
+            amenities = listOf("Pool", "Spa", "Fitness Center", "Free Wi-Fi"),
+            reviewsCount = 2150,
+            lat = -1.233,
+            lng = 36.815,
             availabilityStatus = "Available",
-            hotelClass = "5-star hotel"
+            hotelClass = "5-star hotel",
+            googlePlaceId = "ChIJh69h1vIRLxgR8A22A7XoN3E",
+            phoneNumber = "+254 20 720 0000",
+            photoAttribution = "Tribe Hotel"
         ),
         StayItem(
             id = "stay_hilton_garden_inn_nairobi",
@@ -3241,22 +3404,25 @@ object SafariCatalog {
         ),
         StayItem(
             id = "stay_sarova_stanley_hotel",
-            title = "Sarova Stanley Hotel, Nairobi",
-            location = "Nairobi",
+            title = "Sarova Stanley Hotel",
+            location = "Central Business District, Nairobi",
             country = "Kenya",
-            description = "Upscale lodging with dining & a spa.",
-            pricePerNight = 143.0,
-            rating = 4.6,
+            description = "Established in 1902, this landmark luxury hotel has hosted royalty and celebrities. Features elegant dining at the Thorn Tree Cafe and refined Victorian-style suites in the heart of Nairobi.",
+            pricePerNight = 185.0,
+            rating = 4.7,
             imageResName = "img_luxury_lodge",
             imageUrls = listOf(
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+                "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
             ),
             amenities = listOf("Pool", "Spa", "Free parking", "Free Wi-Fi"),
             reviewsCount = 9428,
             lat = -1.283,
             lng = 36.823,
             availabilityStatus = "Available",
-            hotelClass = "5-star hotel"
+            hotelClass = "5-star hotel",
+            googlePlaceId = "ChIJhT5-X68RLxgRLvYF06m5_g0",
+            phoneNumber = "+254 709 111 000",
+            photoAttribution = "Sarova Stanley"
         ),
         StayItem(
             id = "stay_nairobi_safari_club",
@@ -4189,23 +4355,86 @@ object SafariCatalog {
             imageResName = "img_safari_balloon",
             description = "Ascend silently into the cold savanna morning. Watch the golden sunrise ignite the acacia tops and view massive herds of elephants and wildebeest moving below. Concludes with a grand champagne bush breakfast.",
             lat = -2.153,
-            lng = 34.685
+            lng = 34.685,
+            isEcoCertified = true,
+            category = "Guided Eco-Trek",
+            country = "Tanzania",
+            reviewsCount = 128,
+            hostCommunity = "Serengeti Balloon Safaris Trust",
+            impactTag = "Eco-Certified Flight",
+            highlights = listOf("Silent 360° Savanna Panorama", "Herds View from 500ft", "Champagne Bush Breakfast"),
+            inclusions = listOf("Park Pilot Permit", "Bush Breakfast", "Commemorative Flight Certificate", "Lodge Transfers"),
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1506929562872-bb421d03ef2a?auto=format&fit=crop&w=800&q=80"
+            )
         ),
         ExperienceItem(
             id = "exp_maasai_culture",
-            title = "Authentic Maasai Cultural Journey",
+            title = "Authentic Maasai Cultural & Beadwork Journey",
             location = "Mara Manyatta, Kenya",
-            durationHours = 2.0,
+            durationHours = 2.5,
             price = 60.0,
-            rating = 4.88,
+            rating = 4.95,
             imageResName = "img_luxury_lodge",
-            description = "Spend a half-day welcomed into a traditional Manyatta village. Learn ancient fire-starting techniques, participate in the Adumu jumping dance, see beautiful beaded beadwork, and support local community schools.",
+            description = "Spend a half-day welcomed into a traditional Manyatta village. Learn ancient fire-starting techniques, participate in the Adumu jumping dance, see intricate beaded craft making with Maasai grandmothers, and support local village schools.",
             lat = -1.488,
-            lng = 35.155
+            lng = 35.155,
+            isEcoCertified = true,
+            category = "Cultural Heritage",
+            country = "Kenya",
+            reviewsCount = 94,
+            hostCommunity = "Oloip Maasai Women's Trust",
+            impactTag = "100% Community-Owned",
+            highlights = listOf("Ancient Fire-making Rituals", "Adumu Jump Celebration", "Beaded Jewelry Workshop", "Village School Visit"),
+            inclusions = listOf("Traditional Welcome Blessing", "Handcrafted Beaded Wristband", "Community Guide", "Village Fund Donation"),
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80"
+            )
+        ),
+        ExperienceItem(
+            id = "exp_batwa_trail",
+            title = "Batwa Indigenous Forest Trail & Heritage Walk",
+            location = "Bwindi Forest, Uganda",
+            durationHours = 4.0,
+            price = 85.0,
+            rating = 4.92,
+            imageResName = "img_safari_hero",
+            description = "Explore ancestral rainforest trails guided by Batwa elders. Discover ancient herbal medicine traditions, traditional archery techniques, forest survival wisdom, and sacred cave shelters.",
+            lat = -1.050,
+            lng = 29.610,
+            isEcoCertified = true,
+            category = "Cultural Heritage",
+            country = "Uganda",
+            reviewsCount = 76,
+            hostCommunity = "Bwindi Batwa Heritage Association",
+            impactTag = "Direct Indigenous Fund",
+            highlights = listOf("Ancestral Forest Wisdom", "Medicinal Botanical Secrets", "Traditional Archery & Songs", "Cave Shelter History"),
+            inclusions = listOf("Batwa Elder Escort", "Herbal Tea Tasting", "Handmade Bamboo Craft", "Conservation Permit")
+        ),
+        ExperienceItem(
+            id = "exp_zanzibar_spice",
+            title = "Stone Town Organic Spice & Swahili Cooking Masterclass",
+            location = "Stone Town, Zanzibar",
+            durationHours = 3.5,
+            price = 70.0,
+            rating = 4.89,
+            imageResName = "img_luxury_lodge",
+            description = "Tour an organic spice plantation smelling cloves, nutmeg, and cinnamon in the air. Afterwards, cook authentic Swahili pilau rice and coconut fish curry with a master Zanzibari chef.",
+            lat = -6.165,
+            lng = 39.199,
+            isEcoCertified = true,
+            category = "Food & Culinary",
+            country = "Zanzibar",
+            reviewsCount = 112,
+            hostCommunity = "Jambiani Women's Spice Co-op",
+            impactTag = "Fair Trade Culinary",
+            highlights = listOf("Botanical Spice Farm Walk", "Smell & Harvest Fresh Spices", "Swahili Cooking Lesson", "Organic Coconut Milk Pressing"),
+            inclusions = listOf("Farm Entrance", "Multi-course Swahili Feast", "Handmade Spice Basket", "Recipe Booklet")
         ),
         ExperienceItem(
             id = "exp_zanzibar_dhow",
-            title = "Sunset Swahili Dhow Cruise & Feast",
+            title = "Sunset Swahili Dhow Cruise & Marine Feast",
             location = "Nungwi Swahili Coast, Zanzibar",
             durationHours = 4.0,
             price = 95.0,
@@ -4213,7 +4442,115 @@ object SafariCatalog {
             imageResName = "img_safari_hero",
             description = "Set sail on a handcrafted mahogany dhow as the equatorial sun dips below the turquoise horizon. Enjoy traditional Taarab live music on board and an organic wood-grilled rock lobster beach dinner.",
             lat = -5.733,
-            lng = 39.294
+            lng = 39.294,
+            isEcoCertified = true,
+            category = "Marine & Water",
+            country = "Zanzibar",
+            reviewsCount = 150,
+            hostCommunity = "Nungwi Mariners Guild",
+            impactTag = "Local Captain Guild",
+            highlights = listOf("Handcrafted Mahogany Dhow", "Live Taarab Acoustic Songs", "Dolphin Sanctuary Coast", "Wood-grilled Seafood Dinner"),
+            inclusions = listOf("Sailing Crew", "Tropical Fruit Buffet", "Wood-grilled Lobster/Fish", "Safety Gear")
+        ),
+        ExperienceItem(
+            id = "exp_kazuri_beads",
+            title = "Kazuri Ceramic Beads & Pottery Social Studio Tour",
+            location = "Nairobi, Kenya",
+            durationHours = 2.0,
+            price = 45.0,
+            rating = 4.87,
+            imageResName = "img_luxury_lodge",
+            description = "Visit the world-famous Kazuri Workshop supporting single mothers and vulnerable women in Nairobi. Experience clay shaping, firing, and hand-painting unique ceramic beads.",
+            lat = -1.320,
+            lng = 36.760,
+            isEcoCertified = true,
+            category = "Artisanal & Craft",
+            country = "Kenya",
+            reviewsCount = 82,
+            hostCommunity = "Kazuri Women's Workshop Nairobi",
+            impactTag = "Empowering Single Mothers",
+            highlights = listOf("Clay Molding Techniques", "Hand-painted Ceramic Glazing", "Meet the Women Artisans", "Private Workshop Studio"),
+            inclusions = listOf("Master Artisan Instructor", "Handmade Clay Pendant Gift", "Studio Tour", "Hotel Shuttle")
+        ),
+        ExperienceItem(
+            id = "exp_kilifi_kayak",
+            title = "Kilifi Bioluminescent Night Kayaking Safari",
+            location = "Kilifi Creek, Kenya",
+            durationHours = 3.0,
+            price = 75.0,
+            rating = 4.96,
+            imageResName = "img_safari_hero",
+            description = "Paddle gently through dark mangrove estuaries under a starry sky as glowing marine plankton lights up your paddle strokes with natural underwater neon bioluminescence.",
+            lat = -3.630,
+            lng = 39.850,
+            isEcoCertified = true,
+            category = "Marine & Water",
+            country = "Kenya",
+            reviewsCount = 68,
+            hostCommunity = "Kilifi Mangrove Rangers",
+            impactTag = "Mangrove Protection Fund",
+            highlights = listOf("Glow-in-the-dark Plankton", "Starlight Mangrove Paddling", "Marine Ecosystem Talk", "Night Wildlife Sounds"),
+            inclusions = listOf("Professional Kayak & Gear", "Marine Biologist Guide", "Warm Herbal Chai", "Lodge Shuttle")
+        ),
+        ExperienceItem(
+            id = "exp_musanze_rwanda",
+            title = "Gorilla Guardian Cultural Village & Royal Drumming",
+            location = "Musanze, Rwanda",
+            durationHours = 3.0,
+            price = 65.0,
+            rating = 4.90,
+            imageResName = "img_luxury_lodge",
+            description = "Experience vibrant Rwandan culture at Iby'Iwacu Village. Witness exhilarating Intore warrior dancing, royal king's palace history, and traditional banana beer brewing.",
+            lat = -1.500,
+            lng = 29.630,
+            isEcoCertified = true,
+            category = "Cultural Heritage",
+            country = "Rwanda",
+            reviewsCount = 91,
+            hostCommunity = "Iby'Iwacu Cultural Village Musanze",
+            impactTag = "Ex-Poacher Livelihoods",
+            highlights = listOf("Royal King's Palace Replica", "Intore Warrior Dance", "Banana Beer Brewing Demo", "Traditional Herbalist Session"),
+            inclusions = listOf("Cultural Village Entry", "Intore Dance Show", "Banana Beer Sample", "Community Contribution")
+        ),
+        ExperienceItem(
+            id = "exp_longonot_trek",
+            title = "Mount Longonot Volcano Guided Crater Eco-Trek",
+            location = "Great Rift Valley, Kenya",
+            durationHours = 5.0,
+            price = 80.0,
+            rating = 4.88,
+            imageResName = "img_safari_hero",
+            description = "Hike up the forested crater rim of Mount Longonot in Kenya's Great Rift Valley. Enjoy dramatic sweeping views, steam vents, and sightings of zebras, giraffes, and birds along the trail.",
+            lat = -0.916,
+            lng = 36.446,
+            isEcoCertified = true,
+            category = "Guided Eco-Trek",
+            country = "Kenya",
+            reviewsCount = 104,
+            hostCommunity = "Rift Valley KWS Local Guides",
+            impactTag = "Community Ranger Supported",
+            highlights = listOf("Volcanic Crater Rim Walk", "Panoramic Rift Valley Views", "Steam Vents & Wildlife", "Geological History"),
+            inclusions = listOf("KWS Park Entry", "Certified Wilderness Ranger", "Packed Hydration Kit", "Trekking Poles")
+        ),
+        ExperienceItem(
+            id = "exp_rwenzori_coffee",
+            title = "Rwenzori Coffee Seed-to-Cup Mountain Farm Tour",
+            location = "Foothills of Rwenzori, Uganda",
+            durationHours = 3.0,
+            price = 55.0,
+            rating = 4.93,
+            imageResName = "img_luxury_lodge",
+            description = "Walk through lush mountain coffee farms on the slopes of the Rwenzori Mountains. Hand-pick ripe Arabica cherries, pulp, roast over open fire, and savor fresh brewed mountain coffee.",
+            lat = 0.350,
+            lng = 30.080,
+            isEcoCertified = true,
+            category = "Food & Culinary",
+            country = "Uganda",
+            reviewsCount = 58,
+            hostCommunity = "Rwenzori Farmers Coffee Co-op",
+            impactTag = "100% Organic Farmer Co-op",
+            highlights = listOf("Volcanic Slopes Farm Walk", "Cherry Hand-Picking & Pulping", "Wood-fired Coffee Roasting", "Barista Cup Tasting"),
+            inclusions = listOf("Farmer Guide", "Fresh Roasted Arabica Bag", "Traditional Farm Lunch", "Farm Entrance")
         )
     )
 
