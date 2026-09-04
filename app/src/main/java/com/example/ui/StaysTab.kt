@@ -46,6 +46,45 @@ fun StaysTab(
     isOwner: Boolean = false,
     onLiveChatClick: ((String) -> Unit)? = null
 ) {
+    var sortOption by remember { mutableStateOf("price_asc") } // "price_asc", "price_desc", "proximity", "rating"
+    var selectedCategory by remember { mutableStateOf("All") } // "All", "Eco-Certified", "Available", "Luxury"
+    var searchQuery by remember { mutableStateOf("") }
+    var isSortMenuExpanded by remember { mutableStateOf(false) }
+
+    val filteredStays = remember(stays, selectedCategory, searchQuery) {
+        stays.filter { stay ->
+            val matchesCategory = when (selectedCategory) {
+                "Eco-Certified" -> stay.isEcoCertified
+                "Available" -> stay.availabilityStatus.equals("Available", ignoreCase = true)
+                "Luxury" -> stay.hotelClass?.contains("Luxury", ignoreCase = true) == true || stay.pricePerNight >= 400
+                else -> true
+            }
+            val matchesSearch = searchQuery.isBlank() || 
+                stay.title.contains(searchQuery, ignoreCase = true) || 
+                stay.location.contains(searchQuery, ignoreCase = true) || 
+                stay.description.contains(searchQuery, ignoreCase = true) ||
+                stay.amenities.any { it.contains(searchQuery, ignoreCase = true) }
+
+            matchesCategory && matchesSearch
+        }
+    }
+
+    val sortedStays = remember(filteredStays, sortOption) {
+        when (sortOption) {
+            "price_asc" -> filteredStays.sortedBy { it.pricePerNight }
+            "price_desc" -> filteredStays.sortedByDescending { it.pricePerNight }
+            "proximity" -> filteredStays.sortedBy { stay ->
+                val lat = stay.lat ?: -1.4833
+                val lng = stay.lng ?: 35.1439
+                val centerLat = -1.4833
+                val centerLng = 35.1439
+                (lat - centerLat) * (lat - centerLat) + (lng - centerLng) * (lng - centerLng)
+            }
+            "rating" -> filteredStays.sortedByDescending { it.rating }
+            else -> filteredStays
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp),
@@ -159,41 +198,192 @@ fun StaysTab(
             }
         }
 
+        // Filter Chips & Sort Toolbar
         item {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                // Hotel Search Field
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search stays by name, park or location...", fontSize = 12.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", modifier = Modifier.size(18.dp)) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    } else null,
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .testTag("hotel_search_input"),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                )
+
+                // Quick Sort Mode Segmented Toggles (Price Low-to-High vs Proximity vs Rating)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val isPriceAsc = sortOption == "price_asc"
+                    val isProximity = sortOption == "proximity"
+                    val isRating = sortOption == "rating"
+
+                    FilterChip(
+                        selected = isPriceAsc,
+                        onClick = { sortOption = "price_asc" },
+                        label = { Text("💲 Price: Low to High", fontSize = 11.sp, fontWeight = if (isPriceAsc) FontWeight.Bold else FontWeight.Normal) },
+                        leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null, modifier = Modifier.size(12.dp)) },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("toggle_sort_price_asc"),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+
+                    FilterChip(
+                        selected = isProximity,
+                        onClick = { sortOption = "proximity" },
+                        label = { Text("📍 Near Location", fontSize = 11.sp, fontWeight = if (isProximity) FontWeight.Bold else FontWeight.Normal) },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(12.dp)) },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("toggle_sort_proximity"),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+
+                    FilterChip(
+                        selected = isRating,
+                        onClick = { sortOption = "rating" },
+                        label = { Text("⭐ Top Rated", fontSize = 11.sp, fontWeight = if (isRating) FontWeight.Bold else FontWeight.Normal) },
+                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(12.dp)) },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("toggle_sort_rating"),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                }
+
+                // Category Filter Chips Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val categories = listOf("All", "Eco-Certified", "Available", "Luxury")
+                    categories.forEach { category ->
+                        val isSelected = selectedCategory == category
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedCategory = category },
+                            label = { Text(category, fontSize = 12.sp) },
+                            leadingIcon = if (isSelected) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                            } else null,
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.testTag("filter_chip_$category")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${stays.size} Results",
+                        text = "${sortedStays.size} Stays Found",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box {
                         TextButton(
-                            onClick = { },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            onClick = { isSortMenuExpanded = true },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.testTag("stays_sort_dropdown_btn")
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Sort", fontSize = 12.sp)
+                                val sortLabel = when (sortOption) {
+                                    "price_asc" -> "Price: Low to High"
+                                    "price_desc" -> "Price: High to Low"
+                                    "proximity" -> "Location Proximity"
+                                    "rating" -> "Top Rated"
+                                    else -> "Sort"
+                                }
+                                Text(sortLabel, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
                             }
                         }
-                        IconButton(
-                            onClick = { },
-                            modifier = Modifier.size(32.dp)
+                        DropdownMenu(
+                            expanded = isSortMenuExpanded,
+                            onDismissRequest = { isSortMenuExpanded = false }
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))
+                            DropdownMenuItem(
+                                text = { Text("Price: Low to High") },
+                                onClick = {
+                                    sortOption = "price_asc"
+                                    isSortMenuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                modifier = Modifier.testTag("sort_price_asc")
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Price: High to Low") },
+                                onClick = {
+                                    sortOption = "price_desc"
+                                    isSortMenuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                modifier = Modifier.testTag("sort_price_desc")
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Location Proximity") },
+                                onClick = {
+                                    sortOption = "proximity"
+                                    isSortMenuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                modifier = Modifier.testTag("sort_proximity")
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Top Rated") },
+                                onClick = {
+                                    sortOption = "rating"
+                                    isSortMenuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                modifier = Modifier.testTag("sort_rating")
+                            )
                         }
                     }
                 }
-                Divider(modifier = Modifier.padding(top = 4.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                HorizontalDivider(modifier = Modifier.padding(top = 4.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
             }
         }
         
-        items(stays) { stay ->
+        items(sortedStays) { stay ->
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 StayCard(
                     stay = stay,

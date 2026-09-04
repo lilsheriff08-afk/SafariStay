@@ -1,10 +1,12 @@
 package com.example.ui
 
 import android.annotation.SuppressLint
+import android.view.View
+import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,17 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.BuildConfig
 import com.example.data.SafariItem
 import com.example.data.StayItem
 import org.json.JSONArray
 import org.json.JSONObject
-
-import android.webkit.JavascriptInterface
 
 class MapInterface(private val onMarkerClick: (String, String) -> Unit) {
     @JavascriptInterface
@@ -43,8 +41,6 @@ fun CatalogMapboxWebView(
     safaris: List<SafariItem> = emptyList(),
     onMarkerClick: (String, String) -> Unit = { _, _ -> }
 ) {
-    val mapboxToken = BuildConfig.MAPBOX_ACCESS_TOKEN
-    
     // Generate JSON for markers
     val markersJsonArray = remember(stays, safaris) {
         val array = JSONArray()
@@ -54,6 +50,7 @@ fun CatalogMapboxWebView(
             obj.put("title", stay.title)
             obj.put("lat", stay.lat)
             obj.put("lng", stay.lng)
+            obj.put("price", stay.pricePerNight.toInt())
             obj.put("type", "Stay")
             array.put(obj)
         }
@@ -63,90 +60,145 @@ fun CatalogMapboxWebView(
             obj.put("title", safari.title)
             obj.put("lat", safari.lat)
             obj.put("lng", safari.lng)
+            obj.put("price", safari.price.toInt())
             obj.put("type", "Safari")
             array.put(obj)
         }
         array.toString()
     }
 
-    val htmlContent = """
+    val htmlContent = remember(markersJsonArray) {
+        """
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Mapbox Map</title>
-            <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-            <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
-            <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+            <title>Catalog Map</title>
+            <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,width=device-width">
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <style>
-                body { margin: 0; padding: 0; }
-                #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-                .marker {
-                    background-color: #D4AF37;
-                    width: 15px;
-                    height: 15px;
-                    border-radius: 50%;
+                body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #e0ded8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+                #map { width: 100%; height: 100%; }
+                .custom-marker {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 20px;
+                    padding: 4px 8px;
+                    color: white;
+                    font-size: 11px;
+                    font-weight: 700;
+                    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
                     border: 2px solid white;
                     cursor: pointer;
+                    white-space: nowrap;
+                    transition: transform 0.2s ease;
+                }
+                .marker-stay {
+                    background: linear-gradient(135deg, #1B5E20, #2E7D32);
                 }
                 .marker-safari {
-                    background-color: #2E7D32;
+                    background: linear-gradient(135deg, #E65100, #F57C00);
+                }
+                .leaflet-popup-content-wrapper {
+                    border-radius: 12px;
+                    padding: 4px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                }
+                .popup-btn {
+                    background: #1B5E20;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    margin-top: 6px;
+                    width: 100%;
                 }
             </style>
         </head>
         <body>
             <div id="map"></div>
             <script>
-                mapboxgl.accessToken = '$mapboxToken';
-                const map = new mapboxgl.Map({
-                    container: 'map',
-                    style: 'mapbox://styles/mapbox/outdoors-v12',
-                    center: [36.8219, -1.2921], // Default center (Nairobi)
-                    zoom: 5
-                });
-                
+                const map = L.map('map', {
+                    zoomControl: false,
+                    attributionControl: false
+                }).setView([-0.5, 37.5], 6);
+
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    maxZoom: 19,
+                    subdomains: 'abcd'
+                }).addTo(map);
+
                 const markersData = $markersJsonArray;
-                
+
                 if (markersData.length > 0) {
-                    const bounds = new mapboxgl.LngLatBounds();
-                    
-                    markersData.forEach(function(marker) {
-                        const el = document.createElement('div');
-                        el.className = 'marker';
-                        if (marker.type === 'Safari') {
-                            el.classList.add('marker-safari');
-                        }
+                    const bounds = [];
+                    markersData.forEach(function(item) {
+                        const isStay = item.type === 'Stay';
+                        const bgClass = isStay ? 'marker-stay' : 'marker-safari';
+                        const iconHtml = '<div class="custom-marker ' + bgClass + '">' + (isStay ? '🏨 $' : '🦁 $') + item.price + '</div>';
                         
-                        el.addEventListener('click', () => {
-                            if (window.Android) {
-                                window.Android.onMarkerClick(marker.id, marker.type);
-                            }
+                        const customIcon = L.divIcon({
+                            html: iconHtml,
+                            className: '',
+                            iconSize: [60, 24],
+                            iconAnchor: [30, 12]
                         });
+
+                        const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
                         
-                        new mapboxgl.Marker(el)
-                            .setLngLat([marker.lng, marker.lat])
-                            .addTo(map);
-                            
-                        bounds.extend([marker.lng, marker.lat]);
+                        const popupContent = '<div style="font-size:12px; font-weight:600; margin-bottom:4px;">' + 
+                            item.title + 
+                            '</div><div style="color:#666; font-size:11px;">' + (isStay ? 'Lodge / Resort' : 'Safari Experience') + ' - $' + item.price + '</div>' +
+                            '<button class="popup-btn" onclick="triggerMarkerClick(\'' + item.id + '\', \'' + item.type + '\')">View Details</button>';
+                        
+                        marker.bindPopup(popupContent);
+                        
+                        bounds.push([item.lat, item.lng]);
                     });
-                    
-                    map.fitBounds(bounds, { padding: 50 });
+
+                    if (bounds.length > 0) {
+                        map.fitBounds(bounds, { padding: [30, 30] });
+                    }
+                }
+
+                function triggerMarkerClick(id, type) {
+                    if (window.Android) {
+                        window.Android.onMarkerClick(id, type);
+                    }
                 }
             </script>
         </body>
         </html>
-    """.trimIndent()
+        """.trimIndent()
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
                 WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.cacheMode = WebSettings.LOAD_NO_CACHE
+                    setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        cacheMode = WebSettings.LOAD_DEFAULT
+                        useWideViewPort = true
+                        loadWithOverviewMode = true
+                    }
                     addJavascriptInterface(MapInterface(onMarkerClick), "Android")
-                    webViewClient = WebViewClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun onRenderProcessGone(
+                            view: WebView?,
+                            detail: RenderProcessGoneDetail?
+                        ): Boolean {
+                            return true // Gracefully handle renderer crashes and prevent app exit
+                        }
+                    }
                     setOnTouchListener { v, event ->
                         when (event.action) {
                             android.view.MotionEvent.ACTION_DOWN -> {
@@ -158,11 +210,15 @@ fun CatalogMapboxWebView(
                         }
                         false
                     }
-                    loadDataWithBaseURL("https://api.mapbox.com/", htmlContent, "text/html", "UTF-8", null)
+                    loadDataWithBaseURL("https://unpkg.com/", htmlContent, "text/html", "UTF-8", null)
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL("https://api.mapbox.com/", htmlContent, "text/html", "UTF-8", null)
+                // Only update content if changed
+                if (webView.tag != markersJsonArray) {
+                    webView.tag = markersJsonArray
+                    webView.loadDataWithBaseURL("https://unpkg.com/", htmlContent, "text/html", "UTF-8", null)
+                }
             }
         )
 
@@ -170,12 +226,12 @@ fun CatalogMapboxWebView(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(8.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
             shape = RoundedCornerShape(8.dp),
             shadowElevation = 2.dp
         ) {
             Text(
-                text = "📍 Map View",
+                text = "📍 Interactive Map",
                 fontSize = 11.sp,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -183,3 +239,4 @@ fun CatalogMapboxWebView(
         }
     }
 }
+

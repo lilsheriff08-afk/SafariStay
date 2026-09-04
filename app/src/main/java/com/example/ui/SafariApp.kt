@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -90,113 +91,114 @@ fun DiscoveryMapWebView(
     safaris: List<SafariItem>,
     modifier: Modifier = Modifier
 ) {
-    val accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN
-    val isDefaultToken = accessToken.contains("EXAMPLE") || accessToken.isEmpty()
-
-    if (isDefaultToken) {
-        Box(
-            modifier = modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Map, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Mapbox Token Required",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Please add MAPBOX_ACCESS_TOKEN to the Secrets panel.",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+    val stayMarkers = remember(stays) {
+        stays.filter { it.lat != null && it.lng != null }.map {
+            "{ name: '" + it.title.replace("'", "\'") + "', lat: " + it.lat + ", lng: " + it.lng + ", type: 'stay' }"
         }
-        return
     }
+    val safariMarkers = remember(safaris) {
+        safaris.filter { it.lat != null && it.lng != null }.map {
+            "{ name: '" + it.title.replace("'", "\'") + "', lat: " + it.lat + ", lng: " + it.lng + ", type: 'safari' }"
+        }
+    }
+    val allMarkers = remember(stayMarkers, safariMarkers) { stayMarkers + safariMarkers }
 
-    val stayMarkers = stays.filter { it.lat != null && it.lng != null }.map {
-        "{ name: '${it.title.replace("'", "\\'")}', lat: ${it.lat}, lng: ${it.lng}, type: 'stay' }"
-    }
-    val safariMarkers = safaris.filter { it.lat != null && it.lng != null }.map {
-        "{ name: '${it.title.replace("'", "\\'")}', lat: ${it.lat}, lng: ${it.lng}, type: 'safari' }"
-    }
-    
-    val allMarkers = stayMarkers + safariMarkers
-
-    val htmlContent = """
+    val htmlContent = remember(allMarkers) {
+        """
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <title>Safari Discovery Map</title>
-            <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-            <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-            <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+            <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,width=device-width">
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <style>
-                body { margin: 0; padding: 0; }
-                #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-                .mapboxgl-popup { max-width: 200px; }
-                .mapboxgl-popup-content { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; }
+                body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #e0ded8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+                #map { width: 100%; height: 100%; }
+                .marker-icon {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 50%;
+                    color: white;
+                    font-size: 13px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+                    border: 2px solid white;
+                }
+                .stay-icon { background: #2E7D32; }
+                .safari-icon { background: #E65100; }
+                .leaflet-popup-content-wrapper { border-radius: 10px; font-size: 12px; }
             </style>
         </head>
         <body>
         <div id="map"></div>
         <script>
-            mapboxgl.accessToken = '$accessToken';
-            const map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/outdoors-v12',
-                center: [36.0, -2.5],
-                zoom: 4.5
-            });
+            const map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([-0.5, 37.5], 6);
 
-            map.on('load', () => {
-                const markers = [${allMarkers.joinToString(", ")}];
-                if (markers.length > 0) {
-                    const bounds = new mapboxgl.LngLatBounds();
-                    
-                    markers.forEach(m => {
-                        const el = document.createElement('div');
-                        el.className = 'marker';
-                        
-                        const color = m.type === 'stay' ? '#4CAF50' : '#FF9800';
-                        
-                        new mapboxgl.Marker({ color: color })
-                            .setLngLat([m.lng, m.lat])
-                            .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML('<h3>' + m.name + '</h3><p>' + (m.type === 'stay' ? 'Safari Lodge' : 'Safari Expedition') + '</p>'))
-                            .addTo(map);
-                            
-                        bounds.extend([m.lng, m.lat]);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                subdomains: 'abcd'
+            }).addTo(map);
+
+            const markers = [""" + allMarkers.joinToString(", ") + """];
+            if (markers.length > 0) {
+                const bounds = [];
+                markers.forEach(m => {
+                    const isStay = m.type === 'stay';
+                    const icon = L.divIcon({
+                        html: '<div class="marker-icon ' + (isStay ? 'stay-icon' : 'safari-icon') + '">' + (isStay ? '🏨' : '🦁') + '</div>',
+                        className: '',
+                        iconSize: [26, 26],
+                        iconAnchor: [13, 13]
                     });
+                    
+                    const marker = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
+                    marker.bindPopup('<b>' + m.name + '</b><br><span style="color:#666;">' + (isStay ? 'Safari Lodge' : 'Safari Expedition') + '</span>');
+                    bounds.push([m.lat, m.lng]);
+                });
 
-                    map.fitBounds(bounds, { padding: 50 });
+                if (bounds.length > 0) {
+                    map.fitBounds(bounds, { padding: [30, 30] });
                 }
-            });
+            }
         </script>
         </body>
         </html>
-    """.trimIndent()
+        """.trimIndent()
+    }
 
     AndroidView(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
-                webViewClient = WebViewClient()
+                setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                webViewClient = object : WebViewClient() {
+                    override fun onRenderProcessGone(
+                        view: WebView?,
+                        detail: android.webkit.RenderProcessGoneDetail?
+                    ): Boolean {
+                        return true
+                    }
+                }
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                    cacheMode = WebSettings.LOAD_DEFAULT
+                    useWideViewPort = true
+                    loadWithOverviewMode = true
                 }
-                loadDataWithBaseURL("https://www.mapbox.com", htmlContent, "text/html", "UTF-8", null)
+                loadDataWithBaseURL("https://unpkg.com/", htmlContent, "text/html", "UTF-8", null)
             }
         },
         update = { webView ->
-            webView.loadDataWithBaseURL("https://www.mapbox.com", htmlContent, "text/html", "UTF-8", null)
+            if (webView.tag != allMarkers.hashCode()) {
+                webView.tag = allMarkers.hashCode()
+                webView.loadDataWithBaseURL("https://unpkg.com/", htmlContent, "text/html", "UTF-8", null)
+            }
         }
     )
 }
@@ -235,142 +237,133 @@ fun MapboxWebView(
     bookings: List<BookingEntity>,
     modifier: Modifier = Modifier
 ) {
-    val accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN
-    
-    // Simple check for default token
-    val isDefaultToken = accessToken.contains("EXAMPLE") || accessToken.isEmpty()
-
-    if (isDefaultToken) {
-        Box(
-            modifier = modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Map, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Mapbox Token Required",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Please add MAPBOX_ACCESS_TOKEN to the Secrets panel.",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        return
-    }
-
-    val mapStyle = if (mapType == "satellite") "mapbox://styles/mapbox/satellite-v9" else "mapbox://styles/mapbox/outdoors-v12"
-    
-    // Generate route GeoJSON from bookings
     val routePoints = remember(bookings) {
         bookings.mapNotNull { booking ->
             when {
-                booking.title.contains("Mara") -> "[35.215, -1.406]"
-                booking.title.contains("Serengeti") -> "[34.833, -2.333]"
-                booking.title.contains("Ngorongoro") -> "[35.500, -3.200]"
-                booking.title.contains("Zanzibar") -> "[39.300, -6.100]"
-                booking.title.contains("Le Petit Village") -> "[32.596, 0.299]"
+                booking.title.contains("Mara") -> "[-1.406, 35.215, '" + booking.title.replace("'", "\'") + "']"
+                booking.title.contains("Serengeti") -> "[-2.333, 34.833, '" + booking.title.replace("'", "\'") + "']"
+                booking.title.contains("Ngorongoro") -> "[-3.200, 35.500, '" + booking.title.replace("'", "\'") + "']"
+                booking.title.contains("Zanzibar") -> "[-6.100, 39.300, '" + booking.title.replace("'", "\'") + "']"
+                booking.title.contains("Le Petit Village") -> "[0.299, 32.596, '" + booking.title.replace("'", "\'") + "']"
                 else -> null
             }
         }.distinct()
     }
 
-    val htmlContent = """
+    val isSatellite = mapType == "satellite"
+    val tileUrl = if (isSatellite) {
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    } else {
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+    }
+
+    val htmlContent = remember(routePoints, mapType) {
+        """
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <title>Safari Route</title>
-            <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-            <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-            <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+            <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,width=device-width">
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <style>
-                body { margin: 0; padding: 0; }
-                #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+                body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #222; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+                #map { width: 100%; height: 100%; }
+                .route-marker {
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 11px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                }
+                .marker-start { background: #FF5722; }
+                .marker-waypoint { background: #2E7D32; }
             </style>
         </head>
         <body>
         <div id="map"></div>
         <script>
-            mapboxgl.accessToken = '$accessToken';
-            const map = new mapboxgl.Map({
-                container: 'map',
-                style: '$mapStyle',
-                center: [36.0, -2.5],
-                zoom: 5
-            });
+            const map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([-2.5, 36.0], 5);
 
-            map.on('load', () => {
-                const points = [${routePoints.joinToString(", ")}];
-                if (points.length > 0) {
-                    map.addSource('route', {
-                        'type': 'geojson',
-                        'data': {
-                            'type': 'Feature',
-                            'properties': {},
-                            'geometry': {
-                                'type': 'LineString',
-                                'coordinates': points
-                            }
-                        }
-                    });
-                    map.addLayer({
-                        'id': 'route',
-                        'type': 'line',
-                        'source': 'route',
-                        'layout': {
-                            'line-join': 'round',
-                            'line-cap': 'round'
-                        },
-                        'paint': {
-                            'line-color': '#4CAF50',
-                            'line-width': 4
-                        }
-                    });
+            L.tileLayer('""" + tileUrl + """', {
+                maxZoom: 18,
+                subdomains: 'abcd'
+            }).addTo(map);
 
-                    points.forEach((p, i) => {
-                        new mapboxgl.Marker({ color: i === 0 ? '#FF5722' : '#4CAF50' })
-                            .setLngLat(p)
-                            .addTo(map);
-                    });
+            const points = [""" + routePoints.joinToString(", ") + """];
+            if (points.length > 0) {
+                const latLngs = points.map(p => [p[0], p[1]]);
+                
+                L.polyline(latLngs, {
+                    color: '#2E7D32',
+                    weight: 4,
+                    opacity: 0.85,
+                    dashArray: '8, 8',
+                    lineJoin: 'round'
+                }).addTo(map);
 
-                    const bounds = new mapboxgl.LngLatBounds();
-                    points.forEach(p => bounds.extend(p));
-                    map.fitBounds(bounds, { padding: 40 });
-                }
-            });
+                points.forEach((p, i) => {
+                    const isStart = (i === 0);
+                    const icon = L.divIcon({
+                        html: '<div class="route-marker ' + (isStart ? 'marker-start' : 'marker-waypoint') + '">' + (i + 1) + '</div>',
+                        className: '',
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    });
+                    const marker = L.marker([p[0], p[1]], { icon: icon }).addTo(map);
+                    marker.bindPopup('<b>Stop ' + (i + 1) + ': ' + p[2] + '</b>');
+                });
+
+                map.fitBounds(latLngs, { padding: [40, 40] });
+            }
         </script>
         </body>
         </html>
-    """.trimIndent()
+        """.trimIndent()
+    }
 
     AndroidView(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
-                webViewClient = WebViewClient()
+                setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                webViewClient = object : WebViewClient() {
+                    override fun onRenderProcessGone(
+                        view: WebView?,
+                        detail: android.webkit.RenderProcessGoneDetail?
+                    ): Boolean {
+                        return true
+                    }
+                }
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                    cacheMode = WebSettings.LOAD_DEFAULT
+                    useWideViewPort = true
+                    loadWithOverviewMode = true
                 }
-                loadDataWithBaseURL("https://www.mapbox.com", htmlContent, "text/html", "UTF-8", null)
+                loadDataWithBaseURL("https://unpkg.com/", htmlContent, "text/html", "UTF-8", null)
             }
         },
         update = { webView ->
-            // Re-load if style changes
-            webView.loadDataWithBaseURL("https://www.mapbox.com", htmlContent, "text/html", "UTF-8", null)
+            val tagValue = routePoints.hashCode() + mapType.hashCode()
+            if (webView.tag != tagValue) {
+                webView.tag = tagValue
+                webView.loadDataWithBaseURL("https://unpkg.com/", htmlContent, "text/html", "UTF-8", null)
+            }
         }
     )
 }
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SafariApp(
@@ -418,6 +411,7 @@ fun SafariApp(
     var showFinanceDashboard by remember { mutableStateOf(false) }
     var activeMpesaSuccessToastData by remember { mutableStateOf<MpesaSuccessData?>(null) }
     var activeLiveChatInquiry by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showTearOffAuthModal by remember { mutableStateOf(false) }
     val isOwner by viewModel.isOwner.collectAsStateWithLifecycle()
 
     // Toast or snackbar handling
@@ -495,6 +489,25 @@ fun SafariApp(
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
+                        // Tear-Off Receipt Auth Pass Icon
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                                .clickable { showTearOffAuthModal = true }
+                                .testTag("top_bar_tear_off_receipt_btn"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ConfirmationNumber,
+                                contentDescription = "Tear-Off Receipt Auth Pass",
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
                         // Gemini AI Planner Icon
                         Box(
                             modifier = Modifier
@@ -1179,67 +1192,11 @@ fun SafariApp(
             }
         },
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars),
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
-                val navItemColors = NavigationBarItemDefaults.colors(
-                    indicatorColor = MaterialTheme.colorScheme.primary,
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                NavigationBarItem(
-                    selected = currentTab == "stays",
-                    onClick = { viewModel.setTab("stays") },
-                    icon = { Icon(imageVector = Icons.Default.Home, contentDescription = "Home") },
-                    label = { Text("HOME") },
-                    modifier = Modifier.testTag("tab_stays"),
-                    colors = navItemColors
-                )
-                NavigationBarItem(
-                    selected = currentTab == "safaris",
-                    onClick = { viewModel.setTab("safaris") },
-                    icon = { Icon(imageVector = Icons.Default.Explore, contentDescription = "Safaris") },
-                    label = { Text("SAFARIS") },
-                    modifier = Modifier.testTag("tab_safaris"),
-                    colors = navItemColors
-                )
-                NavigationBarItem(
-                    selected = currentTab == "events",
-                    onClick = { viewModel.setTab("events") },
-                    icon = { Icon(imageVector = Icons.Default.Event, contentDescription = "Events") },
-                    label = { Text("EVENTS") },
-                    modifier = Modifier.testTag("tab_events"),
-                    colors = navItemColors
-                )
-                NavigationBarItem(
-                    selected = currentTab == "wildlife",
-                    onClick = { viewModel.setTab("wildlife") },
-                    icon = { Icon(imageVector = Icons.Default.Pets, contentDescription = "Wildlife") },
-                    label = { Text("WILDLIFE") },
-                    modifier = Modifier.testTag("tab_wildlife"),
-                    colors = navItemColors
-                )
-                NavigationBarItem(
-                    selected = currentTab == "vouchers",
-                    onClick = { viewModel.setTab("vouchers") },
-                    icon = { Icon(imageVector = Icons.Default.CardMembership, contentDescription = "Vouchers") },
-                    label = { Text("VOUCHERS") },
-                    modifier = Modifier.testTag("tab_vouchers"),
-                    colors = navItemColors
-                )
-                NavigationBarItem(
-                    selected = currentTab == "bookings",
-                    onClick = { viewModel.setTab("bookings") },
-                    icon = { Icon(imageVector = Icons.Default.BookOnline, contentDescription = "Bookings") },
-                    label = { Text("MY TRIPS") },
-                    modifier = Modifier.testTag("tab_bookings"),
-                    colors = navItemColors
-                )
-            }
+            NeonSlidingNavigationBar(
+                currentTab = currentTab,
+                onTabSelected = { viewModel.setTab(it) },
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+            )
         }
     ) { innerPadding ->
         Box(
@@ -1428,7 +1385,7 @@ fun SafariApp(
                         } else {
                             "Dates not selected"
                         }
-                        viewModel.bookStay(stay, dateRange, voucherCode) // TODO: update viewmodel later if we need to store guests
+                        viewModel.bookStay(stay = stay, dateRange = dateRange, voucherCode = voucherCode) // TODO: update viewmodel later if we need to store guests
                         selectedStayForBooking = null
                     },
                     onInitiateMpesaPayment = { phone, amount ->
@@ -1457,7 +1414,7 @@ fun SafariApp(
                         } else {
                             "Dates not selected"
                         }
-                        viewModel.bookSafari(safari, dateRange, voucherCode) // TODO: update viewmodel later if we need to store guests
+                        viewModel.bookSafari(safari = safari, dateRange = dateRange, voucherCode = voucherCode) // TODO: update viewmodel later if we need to store guests
                         selectedSafariForBooking = null
                     },
                     onInitiateMpesaPayment = { phone, amount ->
@@ -1476,6 +1433,13 @@ fun SafariApp(
                     recipientTitle = recipientTitle,
                     recipientSubtitle = "Lodge Host / Safari Guide • Instant Sync",
                     onDismiss = { activeLiveChatInquiry = null }
+                )
+            }
+
+            if (showTearOffAuthModal) {
+                TearOffReceiptAuthDialog(
+                    viewModel = viewModel,
+                    onDismiss = { showTearOffAuthModal = false }
                 )
             }
 
@@ -5592,17 +5556,72 @@ fun MyTripsTab(
                 ) {
                     Text(
                         text = booking.title,
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Reservation ID: STAY-ESC-${booking.id}",
+                        text = "Booking Ref: ${booking.bookingReference} | ID: STAY-ESC-${booking.id}",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Status:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Surface(
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = booking.status,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Dates:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(booking.dateRange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Accommodation:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(booking.roomType, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Guest Name:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(booking.guestName, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -6434,6 +6453,40 @@ fun BookingCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Bed,
+                        contentDescription = "Room",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Room: ${booking.roomType}",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.ConfirmationNumber,
+                        contentDescription = "Booking Ref",
+                        tint = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "ID: ${booking.bookingReference}",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -6530,7 +6583,7 @@ fun BookingCard(
                     
                     Spacer(modifier = Modifier.width(8.dp))
                     
-                    if (booking.status == "Held (Escrow)" && onShowQrClick != null) {
+                    if (booking.status != "Cancelled (Refunded)" && onShowQrClick != null) {
                         Button(
                             onClick = onShowQrClick,
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -6656,12 +6709,15 @@ fun BookingDialog(
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
     // Payment States
-    var paymentMethod by remember { mutableStateOf("M-Pesa") }
+    var paymentMethod by remember { mutableStateOf("Credit Card") } // "Credit Card", "Apple Pay", "Google Pay", "PayPal", "Bank Transfer", "M-Pesa", "Airtel"
     var phoneNumber by remember { mutableStateOf("") }
     var airtelNumber by remember { mutableStateOf("") }
+    var cardHolderName by remember { mutableStateOf("") }
     var cardNumber by remember { mutableStateOf("") }
     var cardExpiry by remember { mutableStateOf("") }
     var cardCvv by remember { mutableStateOf("") }
+    var paypalEmail by remember { mutableStateOf("") }
+    var bankTxRef by remember { mutableStateOf("") }
     var paymentState by remember { mutableStateOf("Idle") } // Idle, Processing, WaitingForPin, Success
     var mpesaReceiptRef by remember { mutableStateOf("") }
     val dialogScope = rememberCoroutineScope()
@@ -6875,86 +6931,230 @@ fun BookingDialog(
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PaymentChip(
+                                label = "Credit Card",
+                                isSelected = paymentMethod == "Credit Card",
+                                onClick = { paymentMethod = "Credit Card" },
+                                icon = Icons.Default.CreditCard
+                            )
+                            PaymentChip(
+                                label = "Apple Pay",
+                                isSelected = paymentMethod == "Apple Pay",
+                                onClick = { paymentMethod = "Apple Pay" },
+                                icon = Icons.Default.PhoneIphone
+                            )
+                            PaymentChip(
+                                label = "Google Pay",
+                                isSelected = paymentMethod == "Google Pay",
+                                onClick = { paymentMethod = "Google Pay" },
+                                icon = Icons.Default.AccountBalanceWallet
+                            )
+                            PaymentChip(
+                                label = "PayPal",
+                                isSelected = paymentMethod == "PayPal",
+                                onClick = { paymentMethod = "PayPal" },
+                                icon = Icons.Default.Payment
+                            )
+                            PaymentChip(
+                                label = "Bank Wire",
+                                isSelected = paymentMethod == "Bank Transfer",
+                                onClick = { paymentMethod = "Bank Transfer" },
+                                icon = Icons.Default.AccountBalance
+                            )
                             PaymentChip(
                                 label = "M-Pesa",
                                 isSelected = paymentMethod == "M-Pesa",
                                 onClick = { paymentMethod = "M-Pesa" },
-                                icon = Icons.Default.Smartphone,
-                                modifier = Modifier.weight(1f)
+                                icon = Icons.Default.Smartphone
                             )
                             PaymentChip(
                                 label = "Airtel",
                                 isSelected = paymentMethod == "Airtel",
                                 onClick = { paymentMethod = "Airtel" },
-                                icon = Icons.Default.MobileFriendly,
-                                modifier = Modifier.weight(1f)
-                            )
-                            PaymentChip(
-                                label = "Card",
-                                isSelected = paymentMethod == "Card",
-                                onClick = { paymentMethod = "Card" },
-                                icon = Icons.Default.CreditCard,
-                                modifier = Modifier.weight(1f)
+                                icon = Icons.Default.MobileFriendly
                             )
                         }
                     }
 
-                    if (paymentMethod == "M-Pesa") {
-                        OutlinedTextField(
-                            value = phoneNumber,
-                            onValueChange = { if (it.all { c -> c.isDigit() }) phoneNumber = it },
-                            label = { Text("M-Pesa Phone Number") },
-                            placeholder = { Text("254711222333") },
-                            prefix = { Text("+") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            leadingIcon = { Icon(Icons.Default.Smartphone, null) }
-                        )
-                    } else if (paymentMethod == "Airtel") {
-                        OutlinedTextField(
-                            value = airtelNumber,
-                            onValueChange = { if (it.all { c -> c.isDigit() }) airtelNumber = it },
-                            label = { Text("Airtel Money Number") },
-                            placeholder = { Text("254733111222") },
-                            prefix = { Text("+") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            leadingIcon = { Icon(Icons.Default.MobileFriendly, null) }
-                        )
-                    } else if (paymentMethod == "Card") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = cardNumber,
-                                onValueChange = { if (it.length <= 16 && it.all { c -> c.isDigit() }) cardNumber = it },
-                                label = { Text("Card Number (Visa / MasterCard)") },
-                                placeholder = { Text("4111222233334444") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                leadingIcon = { Icon(Icons.Default.CreditCard, null) }
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when (paymentMethod) {
+                        "Credit Card" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
-                                    value = cardExpiry,
-                                    onValueChange = { cardExpiry = it },
-                                    label = { Text("MM/YY") },
-                                    placeholder = { Text("12/28") },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
+                                    value = cardHolderName,
+                                    onValueChange = { cardHolderName = it },
+                                    label = { Text("Cardholder Name") },
+                                    placeholder = { Text("e.g. John Doe") },
+                                    modifier = Modifier.fillMaxWidth().testTag("card_holder_input"),
+                                    singleLine = true,
+                                    leadingIcon = { Icon(Icons.Default.Person, null) }
                                 )
                                 OutlinedTextField(
-                                    value = cardCvv,
-                                    onValueChange = { if (it.length <= 3 && it.all { c -> c.isDigit() }) cardCvv = it },
-                                    label = { Text("CVV") },
-                                    placeholder = { Text("123") },
-                                    modifier = Modifier.weight(1f),
+                                    value = cardNumber,
+                                    onValueChange = { if (it.length <= 19) cardNumber = it },
+                                    label = { Text("Card Number (Visa, MasterCard, Amex)") },
+                                    placeholder = { Text("4111 2222 3333 4444") },
+                                    modifier = Modifier.fillMaxWidth().testTag("card_number_input"),
                                     singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    leadingIcon = { Icon(Icons.Default.CreditCard, null) },
+                                    trailingIcon = {
+                                        val cardBrand = when {
+                                            cardNumber.startsWith("4") -> "VISA"
+                                            cardNumber.startsWith("5") -> "MC"
+                                            cardNumber.startsWith("3") -> "AMEX"
+                                            cardNumber.startsWith("6") -> "DISC"
+                                            else -> "CARD"
+                                        }
+                                        Text(cardBrand, fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.padding(end = 8.dp), color = MaterialTheme.colorScheme.primary)
+                                    }
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = cardExpiry,
+                                        onValueChange = { if (it.length <= 5) cardExpiry = it },
+                                        label = { Text("MM/YY") },
+                                        placeholder = { Text("12/28") },
+                                        modifier = Modifier.weight(1f).testTag("card_expiry_input"),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    )
+                                    OutlinedTextField(
+                                        value = cardCvv,
+                                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) cardCvv = it },
+                                        label = { Text("CVV") },
+                                        placeholder = { Text("123") },
+                                        modifier = Modifier.weight(1f).testTag("card_cvv_input"),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                                    Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.outline)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("🔒 256-Bit SSL Encrypted Escrow Processing", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                        }
+                        "Apple Pay" -> {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                                modifier = Modifier.fillMaxWidth().testTag("apple_pay_banner")
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.PhoneIphone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(" Pay Express Checkout", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Text("Connected Device Wallet: Visa ending in •••• 4242", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Authorize transaction instantly with Face ID / Touch ID.", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                        }
+                        "Google Pay" -> {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                                modifier = Modifier.fillMaxWidth().testTag("google_pay_banner")
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("G Pay Express Checkout", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Text("Connected Google Wallet: MasterCard ending in •••• 8819", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("1-click secure checkout linked to your Google Account.", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                        }
+                        "PayPal" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = paypalEmail,
+                                    onValueChange = { paypalEmail = it },
+                                    label = { Text("PayPal Account Email") },
+                                    placeholder = { Text("traveler@example.com") },
+                                    modifier = Modifier.fillMaxWidth().testTag("paypal_email_input"),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                    leadingIcon = { Icon(Icons.Default.Payment, null) }
+                                )
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Eligible for PayPal Buyer Protection & Escrow Guarantee", fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    }
+                                }
+                            }
+                        }
+                        "Bank Transfer" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("🏦 Escrow Bank Wire Details:", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        Text("• Bank: KCB Bank Kenya / Equity Bank", fontSize = 11.sp)
+                                        Text("• Account Name: Safari Escrow Services Ltd", fontSize = 11.sp)
+                                        Text("• Account No: 1100 8923 4567 | SWIFT: KCBLKENX", fontSize = 11.sp)
+                                        Text("• Reference Code: SAF-2026-X89", fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = bankTxRef,
+                                    onValueChange = { bankTxRef = it },
+                                    label = { Text("Enter Bank Wire Reference / Slip No.") },
+                                    placeholder = { Text("e.g. FT2623910293") },
+                                    modifier = Modifier.fillMaxWidth().testTag("bank_ref_input"),
+                                    singleLine = true,
+                                    leadingIcon = { Icon(Icons.Default.AccountBalance, null) }
                                 )
                             }
+                        }
+                        "M-Pesa" -> {
+                            OutlinedTextField(
+                                value = phoneNumber,
+                                onValueChange = { if (it.all { c -> c.isDigit() }) phoneNumber = it },
+                                label = { Text("M-Pesa Phone Number") },
+                                placeholder = { Text("254711222333") },
+                                prefix = { Text("+") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                leadingIcon = { Icon(Icons.Default.Smartphone, null) }
+                            )
+                        }
+                        "Airtel" -> {
+                            OutlinedTextField(
+                                value = airtelNumber,
+                                onValueChange = { if (it.all { c -> c.isDigit() }) airtelNumber = it },
+                                label = { Text("Airtel Money Number") },
+                                placeholder = { Text("254733111222") },
+                                prefix = { Text("+") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                leadingIcon = { Icon(Icons.Default.MobileFriendly, null) }
+                            )
                         }
                     }
 
@@ -6979,6 +7179,32 @@ fun BookingDialog(
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary
                         )
+                    }
+
+                    // Commission & Escrow Guarantee Badge
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Platform Escrow Protected: ${(commissionRate * 100).toInt()}% commission retained ($sym${String.format("%,d", (displayFinalPrice * commissionRate).toInt())})",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
 
                     // Simulated Processing State
@@ -7013,56 +7239,96 @@ fun BookingDialog(
             } else {
                 val isProcessing = paymentState == "Processing" || paymentState == "WaitingForPin"
                 val canSubmit = selectedDates.first != null && !isProcessing && when (paymentMethod) {
+                    "Credit Card" -> cardNumber.length >= 12 && cardExpiry.isNotEmpty() && cardCvv.length >= 3
+                    "Apple Pay" -> true
+                    "Google Pay" -> true
+                    "PayPal" -> paypalEmail.contains("@") && paypalEmail.contains(".")
+                    "Bank Transfer" -> bankTxRef.length >= 5
                     "M-Pesa" -> phoneNumber.length >= 10
                     "Airtel" -> airtelNumber.length >= 10
-                    "Card" -> cardNumber.length >= 16 && cardExpiry.isNotEmpty() && cardCvv.length >= 3
                     else -> true
                 }
                 val buttonText = when (paymentMethod) {
+                    "Credit Card" -> if (isProcessing) "Authorizing Card..." else "Pay $sym${String.format("%,d", displayFinalPrice.toInt())} with Card"
+                    "Apple Pay" -> if (isProcessing) "Authorizing Face ID..." else "Pay $sym${String.format("%,d", displayFinalPrice.toInt())} with Pay"
+                    "Google Pay" -> if (isProcessing) "Connecting Google Pay..." else "Pay $sym${String.format("%,d", displayFinalPrice.toInt())} with GPay"
+                    "PayPal" -> if (isProcessing) "Connecting PayPal..." else "Pay $sym${String.format("%,d", displayFinalPrice.toInt())} with PayPal"
+                    "Bank Transfer" -> if (isProcessing) "Verifying Wire Ref..." else "Submit Bank Wire ($sym${String.format("%,d", displayFinalPrice.toInt())})"
                     "M-Pesa" -> if (isProcessing) "Processing M-Pesa..." else "Pay with M-Pesa"
                     "Airtel" -> if (isProcessing) "Processing Airtel..." else "Pay with Airtel Money"
-                    "Card" -> if (isProcessing) "Processing Card..." else "Pay with Card"
                     else -> "Confirm & Pay"
                 }
                 Button(
                     onClick = {
                         dialogScope.launch {
-                            if (paymentMethod == "M-Pesa") {
-                                paymentState = "Processing"
-                                val success = onInitiateMpesaPayment(phoneNumber, displayFinalPrice.toInt())
-                                if (success) {
-                                    paymentState = "WaitingForPin"
-                                    delay(4000) // Simulating user entering PIN on their phone
+                            paymentState = "Processing"
+                            when (paymentMethod) {
+                                "Apple Pay" -> {
+                                    delay(1500)
                                     paymentState = "Success"
-                                    val generatedRef = "MPX-" + (100000..999999).random()
-                                    mpesaReceiptRef = generatedRef
-                                    val mpesaToastData = MpesaSuccessData(
-                                        transactionRef = generatedRef,
-                                        amountFormatted = "$sym${String.format("%,d", displayFinalPrice.toInt())}",
-                                        itemName = itemName,
-                                        location = "$itemName, East Africa",
-                                        startDateMillis = selectedDates.first,
-                                        endDateMillis = selectedDates.second,
-                                        phoneNumber = phoneNumber
-                                    )
-                                    onMpesaSuccessToast?.invoke(mpesaToastData)
-                                    Toast.makeText(context, "M-Pesa payment confirmed! Ref: $generatedRef 📅", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Pay Authorized with Face ID!", Toast.LENGTH_SHORT).show()
                                     onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
-                                } else {
-                                    paymentState = "Idle"
                                 }
-                            } else if (paymentMethod == "Airtel") {
-                                paymentState = "Processing"
-                                delay(2000)
-                                paymentState = "WaitingForPin"
-                                delay(3000)
-                                paymentState = "Success"
-                                onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
-                            } else {
-                                paymentState = "Processing"
-                                delay(2000)
-                                paymentState = "Success"
-                                onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                "Google Pay" -> {
+                                    delay(1500)
+                                    paymentState = "Success"
+                                    Toast.makeText(context, "Google Pay transaction successful!", Toast.LENGTH_SHORT).show()
+                                    onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                }
+                                "PayPal" -> {
+                                    delay(2000)
+                                    paymentState = "Success"
+                                    Toast.makeText(context, "PayPal payment approved ($paypalEmail)!", Toast.LENGTH_SHORT).show()
+                                    onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                }
+                                "Bank Transfer" -> {
+                                    delay(2000)
+                                    paymentState = "Success"
+                                    Toast.makeText(context, "Bank wire ref $bankTxRef recorded in Escrow!", Toast.LENGTH_LONG).show()
+                                    onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                }
+                                "Credit Card" -> {
+                                    delay(2000)
+                                    paymentState = "Success"
+                                    Toast.makeText(context, "Credit Card payment approved!", Toast.LENGTH_SHORT).show()
+                                    onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                }
+                                "M-Pesa" -> {
+                                    val success = onInitiateMpesaPayment(phoneNumber, displayFinalPrice.toInt())
+                                    if (success) {
+                                        paymentState = "WaitingForPin"
+                                        delay(4000)
+                                        paymentState = "Success"
+                                        val generatedRef = "MPX-" + (100000..999999).random()
+                                        mpesaReceiptRef = generatedRef
+                                        val mpesaToastData = MpesaSuccessData(
+                                            transactionRef = generatedRef,
+                                            amountFormatted = "$sym${String.format("%,d", displayFinalPrice.toInt())}",
+                                            itemName = itemName,
+                                            location = "$itemName, East Africa",
+                                            startDateMillis = selectedDates.first,
+                                            endDateMillis = selectedDates.second,
+                                            phoneNumber = phoneNumber
+                                        )
+                                        onMpesaSuccessToast?.invoke(mpesaToastData)
+                                        Toast.makeText(context, "M-Pesa payment confirmed! Ref: $generatedRef 📅", Toast.LENGTH_LONG).show()
+                                        onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                    } else {
+                                        paymentState = "Idle"
+                                    }
+                                }
+                                "Airtel" -> {
+                                    delay(2000)
+                                    paymentState = "WaitingForPin"
+                                    delay(3000)
+                                    paymentState = "Success"
+                                    onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                }
+                                else -> {
+                                    delay(1500)
+                                    paymentState = "Success"
+                                    onConfirm(selectedDates.first, selectedDates.second, guests, selectedVoucherCode.ifEmpty { null })
+                                }
                             }
                         }
                     },
@@ -9904,6 +10170,9 @@ fun GroupTripWorkspaceDialog(
     }
 }
 
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BillSplitCheckoutDialog(
@@ -9912,7 +10181,7 @@ fun BillSplitCheckoutDialog(
     onPaymentComplete: () -> Unit
 ) {
     val context = LocalContext.current
-    var paymentMethod by remember { mutableStateOf("mpesa") } // "mpesa", "card", "airtel"
+    var paymentMethod by remember { mutableStateOf("mpesa") }
     var phoneNumber by remember { mutableStateOf("+254 712 345 678") }
     var cardNumber by remember { mutableStateOf("") }
     var cardExpiry by remember { mutableStateOf("") }
@@ -9958,700 +10227,160 @@ fun BillSplitCheckoutDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // --- COST BREAKDOWN ---
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = "INDIVIDUAL SHARE BREAKDOWN (1 OF 4)",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            
-                            val breakdownItems = listOf(
-                                "1. Accommodation (3 Nights)" to "$750.00",
-                                "2. Park Conservation Fees" to "$200.00",
-                                "3. Hot Air Balloon Add-on (Optional)" to "$50.00"
-                            )
-                            
-                            breakdownItems.forEach { (item, cost) ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(text = item, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(text = cost, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                }
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Split Expense Summary", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Trip / Stay:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(booking.title, fontWeight = FontWeight.SemiBold)
                             }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "YOUR TOTAL DUE:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                Text(text = "$1,000.00", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Total Group Cost:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$${booking.price}", fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Your Share (1/4 Split):", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$${booking.price / 4}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
 
-                    // --- CHOOSE PAYMENT METHOD ---
-                    Text(
-                        text = "SELECT PAYMENT METHOD",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // M-Pesa
-                        Surface(
+                    Text("Select Payment Method", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FilterChip(
+                            selected = paymentMethod == "mpesa",
                             onClick = { paymentMethod = "mpesa" },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, if (paymentMethod == "mpesa") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                            color = if (paymentMethod == "mpesa") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = paymentMethod == "mpesa", onClick = { paymentMethod = "mpesa" })
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text("M-Pesa (Direct STK Push)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    Text("Instant mobile wallet authorization", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
-                                }
-                            }
-                        }
-
-                        // Credit Card
-                        Surface(
+                            label = { Text("M-Pesa STK Push") },
+                            leadingIcon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        )
+                        FilterChip(
+                            selected = paymentMethod == "card",
                             onClick = { paymentMethod = "card" },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, if (paymentMethod == "card") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                            color = if (paymentMethod == "card") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = paymentMethod == "card", onClick = { paymentMethod = "card" })
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text("Credit / Debit Card", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    Text("Visa, Mastercard, American Express", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
-                                }
-                            }
-                        }
-
-                        // Airtel Money
-                        Surface(
-                            onClick = { paymentMethod = "airtel" },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, if (paymentMethod == "airtel") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                            color = if (paymentMethod == "airtel") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = paymentMethod == "airtel", onClick = { paymentMethod = "airtel" })
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text("Airtel / MTN Mobile Money", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    Text("Settle via regional East African mobile networks", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
-                                }
-                            }
-                        }
+                            label = { Text("Credit Card") },
+                            leadingIcon = { Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        )
                     }
 
-                    // --- METHOD SPECIFIC FIELDS ---
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
                     if (paymentMethod == "mpesa") {
                         OutlinedTextField(
                             value = phoneNumber,
                             onValueChange = { phoneNumber = it },
                             label = { Text("M-Pesa Phone Number") },
-                            placeholder = { Text("+254 712 345 678") },
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth().testTag("checkout_phone_field"),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary
-                            )
+                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) }
                         )
-                    } else if (paymentMethod == "card") {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedTextField(
-                                value = cardNumber,
-                                onValueChange = { cardNumber = it },
-                                label = { Text("Card Number") },
-                                placeholder = { Text("4111 2222 3333 4444") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary)
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedTextField(
-                                    value = cardExpiry,
-                                    onValueChange = { cardExpiry = it },
-                                    label = { Text("Expiry (MM/YY)") },
-                                    placeholder = { Text("12/28") },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary)
-                                )
-                                OutlinedTextField(
-                                    value = cardCvc,
-                                    onValueChange = { cardCvc = it },
-                                    label = { Text("CVC") },
-                                    placeholder = { Text("123") },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f),
-                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary)
-                                )
-                            }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                if (phoneNumber.isBlank()) {
+                                    Toast.makeText(context, "Please enter phone number", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                showStkSimulation = true
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Initiate M-Pesa STK Push ($${booking.price / 4})", fontWeight = FontWeight.Bold)
                         }
                     } else {
                         OutlinedTextField(
-                            value = phoneNumber,
-                            onValueChange = { phoneNumber = it },
-                            label = { Text("Carrier Phone Number") },
-                            placeholder = { Text("+256 ... or +255 ...") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
+                            value = cardNumber,
+                            onValueChange = { cardNumber = it },
+                            label = { Text("Card Number") },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary)
+                            singleLine = true
                         )
-                    }
-
-                    // --- SUBMIT AND PROTECTION ---
-                    Spacer(modifier = Modifier.weight(1f))
-                    
-                    Button(
-                        onClick = {
-                            if (paymentMethod == "mpesa") {
-                                showStkSimulation = true
-                            } else {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = cardExpiry,
+                                onValueChange = { cardExpiry = it },
+                                label = { Text("MM/YY") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = cardCvc,
+                                onValueChange = { cardCvc = it },
+                                label = { Text("CVC") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
                                 processingPayment = true
                                 coroutineScope.launch {
-                                    delay(2000)
+                                    kotlinx.coroutines.delay(1500)
                                     processingPayment = false
                                     onPaymentComplete()
                                 }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (processingPayment) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                            } else {
+                                Text("Pay $${booking.price / 4} Now", fontWeight = FontWeight.Bold)
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .testTag("checkout_submit_btn"),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !processingPayment
-                    ) {
-                        if (processingPayment) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
-                        } else {
-                            val btnText = when(paymentMethod) {
-                                "mpesa" -> "PAY $1,000.00 VIA M-PESA"
-                                "card" -> "PAY $1,000.00 VIA CARD"
-                                else -> "PAY $1,000.00 VIA MOBILE MONEY"
-                            }
-                            Text(btnText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Escrow secured. Funds held securely until check-in.",
-                            fontSize = 10.sp,
-                            color = Color(0xFF2E7D32),
-                            fontWeight = FontWeight.SemiBold
-                        )
                     }
                 }
             }
         }
     }
 
-    // STK Push Simulation Overlay Dialog
     if (showStkSimulation) {
-        Dialog(
+        AlertDialog(
             onDismissRequest = { showStkSimulation = false },
-            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color.Black.copy(alpha = 0.9f),
-                modifier = Modifier
-                    .width(300.dp)
-                    .padding(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color(0xFF4CAF50), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("M", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    }
-                    
-                    Text(
-                        text = "M-PESA STK PUSH PENDING",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Text(
-                        text = "A simulated push invitation has been sent to $phoneNumber. Please enter your 4-digit M-Pesa PIN below to authorize the transaction of $1,000.00 (Ksh 130,000).",
-                        color = Color.LightGray,
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    
+            title = { Text("M-Pesa STK Push Simulation") },
+            text = {
+                Column {
+                    Text("An STK push has been sent to . Please enter your M-Pesa PIN to confirm payment of $${booking.price / 4}.")
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = stkPinInput,
-                        onValueChange = { if (it.length <= 4) stkPinInput = it },
-                        label = { Text("Enter M-Pesa PIN", color = Color.White) },
-                        placeholder = { Text("••••", color = Color.Gray) },
+                        onValueChange = { stkPinInput = it },
+                        label = { Text("M-Pesa PIN") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth().testTag("stk_pin_input_field"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF4CAF50),
-                            unfocusedBorderColor = Color.Gray
-                        )
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showStkSimulation = false },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, Color.Gray)
-                        ) {
-                            Text("Cancel", color = Color.White, fontSize = 12.sp)
-                        }
-                        
-                        Button(
-                            onClick = {
-                                if (stkPinInput.length == 4) {
-                                    showStkSimulation = false
-                                    val generatedRef = "MPX-" + (100000..999999).random()
-                                    Toast.makeText(context, "M-Pesa payment authorized! Ref: $generatedRef 📅", Toast.LENGTH_LONG).show()
-                                    onPaymentComplete()
-                                } else {
-                                    Toast.makeText(context, "Please enter a valid 4-digit PIN", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Authorize", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun InternalFinanceDashboard(viewModel: SafariViewModel, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    var showUssdSimulator by remember { mutableStateOf(false) }
-    
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Color(0xFFF8F9FA) // Light grey admin background
-        ) {
-            if (showUssdSimulator) {
-                com.example.ui.UssdSimulatorDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showUssdSimulator = false }
-                )
-            }
-            
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Column {
-                                Text("FINANCIAL RECONCILIATION", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("Internal Admin Tool • Last 30 Days", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
-                            }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onDismiss) {
-                                Icon(Icons.Default.Close, contentDescription = "Close")
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { showUssdSimulator = true }) {
-                                Icon(Icons.Default.PhoneAndroid, contentDescription = "USSD Test")
-                            }
-                            IconButton(onClick = { Toast.makeText(context, "Exporting CSV...", Toast.LENGTH_SHORT).show() }) {
-                                Icon(Icons.Default.Download, contentDescription = "Export")
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                        visualTransformation = PasswordVisualTransformation()
                     )
                 }
-            ) { paddingValues ->
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // --- OVERVIEW STATS ---
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            FinanceStatCard(
-                                title = "FUNDS IN ESCROW",
-                                value = "$142,500",
-                                subValue = "84 Pending Stays",
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            FinanceStatCard(
-                                title = "COMMISSIONS",
-                                value = "$21,375",
-                                subValue = "15% Take-rate",
-                                color = Color(0xFF2E7D32),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            FinanceStatCard(
-                                title = "DISPATCHED",
-                                value = "$385,200",
-                                subValue = "42 Partner Lodges",
-                                color = Color(0xFF1976D2),
-                                modifier = Modifier.weight(1f)
-                            )
-                            FinanceStatCard(
-                                title = "DISPUTES",
-                                value = "2",
-                                subValue = "$1,800 Active",
-                                color = Color(0xFFC62828),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
-                    // --- RECONCILIATION TABLE ---
-                    item {
-                        com.example.ui.ReconciliationDashboardCard()
-                    }
-
-                    item {
-                        Text(
-                            text = "UNSETTLED / ESCROW TRANSACTIONS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-                    
-                    val adminTransactions = listOf(
-                        AdminTx("#BK-9845", "Mara Serena", "$1,000", "$150", "$850", "HELD"),
-                        AdminTx("#BK-9846", "Angama Mara", "$2,500", "$375", "$2,125", "HELD"),
-                        AdminTx("#BK-9842", "Four Seasons", "$3,200", "$480", "$2,720", "RELEASED"),
-                        AdminTx("#BK-9839", "Bisate Lodge", "$1,800", "$270", "$1,530", "DISPUTE")
-                    )
-                    
-                    items(adminTransactions) { tx ->
-                        AdminTxRow(tx)
-                    }
-
-                    // --- SYSTEM HEALTH & RESILIENCE ---
-                    item {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "SYSTEM HEALTH & REGIONAL RESILIENCE",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.2f))
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Dns, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Primary: af-south-1 (Cape Town)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Surface(color = Color(0xFFE8F5E9), shape = RoundedCornerShape(4.dp)) {
-                                        Text("ACTIVE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Dns, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Standby: eu-central-1 (Frankfurt)", fontSize = 12.sp, color = Color.Gray)
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Surface(color = Color.LightGray.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
-                                        Text("STANDBY", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                                    }
-                                }
-                                
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.LightGray.copy(alpha = 0.3f))
-                                
-                                Text("LOW-CONNECTIVITY SYNC STATUS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("SMS Bridge", fontSize = 9.sp, color = Color.Gray)
-                                        Text("Operational", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                                    }
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Batch Size", fontSize = 9.sp, color = Color.Gray)
-                                        Text("100 Items", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Conflict Res", fontSize = 9.sp, color = Color.Gray)
-                                        Text("Server Win", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Button(
-                            onClick = { Toast.makeText(context, "Simulating Network Partition... Fallback to SMS active.", Toast.LENGTH_LONG).show() },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.WifiOff, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("SIMULATE REGIONAL OUTAGE (FAILOVER TEST)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    
-                    item {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = "MANUAL OVERRIDE: #BK-9845",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Status: Check-in date was 2 hours ago. Pending QR scan. Payout Account: M-Pesa Till #884920",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = { 
-                                            viewModel.initiateMpesaPayout("#BK-9845", "+254712345678", 850)
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("RELEASE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    OutlinedButton(
-                                        onClick = { Toast.makeText(context, "Payment Frozen", Toast.LENGTH_SHORT).show() },
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("FREEZE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-data class AdminTx(val id: String, val lodge: String, val total: String, val fee: String, val net: String, val status: String)
-
-@Composable
-fun AdminTxRow(tx: AdminTx) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = tx.id, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = tx.lodge, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.weight(1f))
-                Surface(
-                    color = when(tx.status) {
-                        "HELD" -> Color(0xFFFFF3E0)
-                        "RELEASED" -> Color(0xFFE8F5E9)
-                        else -> Color(0xFFFFEBEE)
-                    },
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = tx.status,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when(tx.status) {
-                            "HELD" -> Color(0xFFE65100)
-                            "RELEASED" -> Color(0xFF2E7D32)
-                            else -> Color(0xFFC62828)
-                        },
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("GROSS", fontSize = 9.sp, color = Color.Gray)
-                    Text(tx.total, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-                Column {
-                    Text("FEE (15%)", fontSize = 9.sp, color = Color.Gray)
-                    Text(tx.fee, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-                Column {
-                    Text("NET PAYOUT", fontSize = 9.sp, color = Color.Gray)
-                    Text(tx.net, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                }
-                IconButton(onClick = { }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FinanceStatCard(title: String, value: String, subValue: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.2f))
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = color)
-            Text(text = subValue, fontSize = 9.sp, color = color.copy(alpha = 0.7f))
-        }
-    }
-}
-
-@Composable
-fun PrivacyConsentDialog(onAccept: () -> Unit) {
-    Dialog(
-        onDismissRequest = { /* Force acceptance */ },
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.VerifiedUser, 
-                    contentDescription = null, 
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Your Privacy & Data Protection",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Safari Stay is registered with the Kenya ODPC. We encrypt your PII (Passport, M-Pesa details) using AES-256 and never store raw PINs. By continuing, you consent to our regional data processing protocols (GDPR & ODPC compliant).",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
-                )
-                Spacer(modifier = Modifier.height(24.dp))
+            },
+            confirmButton = {
                 Button(
-                    onClick = onAccept,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    onClick = {
+                        if (stkPinInput.isBlank()) {
+                            Toast.makeText(context, "Enter PIN", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        showStkSimulation = false
+                        processingPayment = true
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(1200)
+                            processingPayment = false
+                            onPaymentComplete()
+                        }
+                    }
                 ) {
-                    Text("I AGREE & CONTINUE", fontWeight = FontWeight.Bold)
+                    Text("Confirm")
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                TextButton(onClick = { }) {
-                    Text("Read Full Privacy Policy", fontSize = 11.sp)
+            },
+            dismissButton = {
+                TextButton(onClick = { showStkSimulation = false }) {
+                    Text("Cancel")
                 }
             }
-        }
+        )
     }
 }
-
-

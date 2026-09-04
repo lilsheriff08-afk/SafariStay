@@ -8,6 +8,9 @@ interface SightingDao {
     @Query("SELECT * FROM wildlife_sightings ORDER BY timestamp DESC")
     fun getAllSightings(): Flow<List<SightingEntity>>
 
+    @Query("SELECT * FROM wildlife_sightings WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getSightingsByUser(userId: String): Flow<List<SightingEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSighting(sighting: SightingEntity)
 

@@ -1,5 +1,8 @@
 package com.example.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -26,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +51,251 @@ fun StayDetailsScreen(
     onLiveChatClick: ((stayTitle: String) -> Unit)? = null,
     viewModel: SafariViewModel? = null
 ) {
+    val context = LocalContext.current
+    var showBookingOptionsDialog by remember { mutableStateOf(false) }
+    var showCallReferralDialog by remember { mutableStateOf(false) }
+    val referralToken = remember(stay.id) { "SAFARI-COM-${stay.id.take(4).uppercase()}-${(1000..9999).random()}" }
+
+    fun triggerCallHotel() {
+        val rawPhone = stay.phoneNumber?.ifBlank { null } ?: "+254 712 345 678"
+        val cleaned = rawPhone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        try {
+            val intent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:$cleaned")
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Dialing $rawPhone", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    if (showCallReferralDialog) {
+        AlertDialog(
+            onDismissRequest = { showCallReferralDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.VerifiedUser,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Commission-Protected Direct Call",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "To guarantee traveler protection and lock in our standard 15% platform partner commission with ${stay.title}, quote your referral token when connected:",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "PLATFORM REFERRAL & COMMISSION TOKEN",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = referralToken,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "15% Partner Commission Guaranteed by Escrow Agreement",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "• Dialing: ${stay.phoneNumber?.ifBlank { null } ?: "+254 712 345 678"}\n• Host is bound by Safari Escrow Terms.\n• Alternatively, book in-app for automatic instant escrow.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
+                        lineHeight = 16.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCallReferralDialog = false
+                        triggerCallHotel()
+                    },
+                    modifier = Modifier.testTag("confirm_call_with_token_btn")
+                ) {
+                    Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Dial Now")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showCallReferralDialog = false
+                        onBookClick()
+                    }
+                ) {
+                    Text("Book In-App Instead")
+                }
+            }
+        )
+    }
+
+    if (showBookingOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showBookingOptionsDialog = false },
+            title = {
+                Text(
+                    text = "Book ${stay.title}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Choose your booking method with guaranteed platform commission & traveler protection:",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+
+                    // Option 1: Instant In-App Booking (Recommended - 100% Commission Protected)
+                    Card(
+                        onClick = {
+                            showBookingOptionsDialog = false
+                            onBookClick()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)),
+                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth().testTag("option_mock_booking_flow")
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Instant Escrow Booking",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = "BEST",
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "Direct M-Pesa/Card. 15% platform commission automatically retained & held in escrow.",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                                        lineHeight = 14.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Option 2: Direct Hotel Call (with Referral Token Anti-Bypass)
+                    Card(
+                        onClick = {
+                            showBookingOptionsDialog = false
+                            showCallReferralDialog = true
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth().testTag("option_direct_hotel_call")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Phone,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Call Front Desk (Token Protected)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    text = "Uses Token $referralToken to preserve 15% partner commission.",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.85f),
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showBookingOptionsDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -95,6 +344,15 @@ fun StayDetailsScreen(
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { triggerCallHotel() },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("stay_details_call_button")
+                            ) {
+                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Call")
+                            }
                             if (onLiveChatClick != null) {
                                 OutlinedButton(
                                     onClick = {
@@ -106,13 +364,16 @@ fun StayDetailsScreen(
                                 ) {
                                     Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Host Inquiry")
+                                    Text("Inquire")
                                 }
                             }
                             Button(
-                                onClick = onBookClick,
-                                shape = RoundedCornerShape(12.dp)
+                                onClick = { showBookingOptionsDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("stay_details_book_now_button")
                             ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
                                 Text("Book Now")
                             }
                         }
@@ -363,6 +624,30 @@ fun StayDetailsScreen(
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = onBookClick,
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).testTag("tariffs_book_now_button")
+                                ) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Book Now")
+                                }
+                                OutlinedButton(
+                                    onClick = { triggerCallHotel() },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.testTag("tariffs_call_hotel_button")
+                                ) {
+                                    Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Call")
+                                }
+                            }
                         }
                     }
 
@@ -376,19 +661,43 @@ fun StayDetailsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Lodge Contact Information",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Lodge Contact Information",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                FilledTonalButton(
+                                    onClick = { triggerCallHotel() },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.testTag("contact_card_call_now_button")
+                                ) {
+                                    Icon(Icons.Default.Phone, contentDescription = "Call", modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Call Lodge", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                             Spacer(modifier = Modifier.height(12.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { triggerCallHotel() }
+                                    .padding(vertical = 4.dp)
+                            ) {
                                 Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stay.phoneNumber?.ifBlank { null } ?: "+254 712 345 678 (Direct Desk)",
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))

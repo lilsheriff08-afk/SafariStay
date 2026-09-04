@@ -13,6 +13,9 @@ interface BookingDao {
     @Query("SELECT * FROM bookings ORDER BY timestamp DESC")
     fun getAllBookings(): Flow<List<BookingEntity>>
 
+    @Query("SELECT * FROM bookings WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getBookingsByUser(userId: String): Flow<List<BookingEntity>>
+
     @Query("SELECT * FROM bookings WHERE bookingReference = :reference LIMIT 1")
     suspend fun getBookingByReference(reference: String): BookingEntity?
 

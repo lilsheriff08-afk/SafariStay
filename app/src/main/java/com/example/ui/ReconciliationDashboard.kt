@@ -19,6 +19,73 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.viewmodel.SafariViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InternalFinanceDashboard(
+    viewModel: SafariViewModel,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("INTERNAL FINANCE & RECONCILIATION", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.Default.Close, contentDescription = "Close")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    ReconciliationDashboardCard()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PrivacyConsentDialog(onAccept: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("Privacy & Escrow Terms", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        text = {
+            Text(
+                "Welcome to Safari Expeditions. We collect booking information to deliver instant reservations, verified M-Pesa payments, and protected partner commission escrow. By continuing, you agree to our Terms of Service & Privacy Policy.",
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+        },
+        confirmButton = {
+            Button(onClick = onAccept) {
+                Text("Accept & Continue")
+            }
+        }
+    )
+}
+
 @Composable
 fun ReconciliationDashboardCard() {
     Card(

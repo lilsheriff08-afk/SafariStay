@@ -10,5 +10,6 @@ data class JournalEntry(
     val timestamp: Long,
     val location: String,
     val isSynced: Boolean = false,
-    val imageBase64: String? = null
+    val imageBase64: String? = null,
+    val userId: String = "current_user"
 )

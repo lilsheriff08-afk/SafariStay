@@ -11,5 +11,6 @@ data class SightingEntity(
     val locationTag: String,
     val timestamp: Long,
     val photoPlaceholder: String, // name of the animal photo placeholder/asset
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    val userId: String = "current_user"
 )

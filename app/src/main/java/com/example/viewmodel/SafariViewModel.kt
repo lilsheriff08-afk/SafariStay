@@ -836,7 +836,7 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
             )
             when (paymentResult) {
                 is PaymentResult.Success -> {
-                    bookSafari(safari, dateRange, voucherCode)
+                    bookSafari(safari = safari, dateRange = dateRange, voucherCode = voucherCode)
                     _uiEvent.value = "Safari Booked! ${paymentResult.customerMessage}"
                 }
                 is PaymentResult.Pending -> {
@@ -849,7 +849,7 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         }
     }
 
-    fun bookStay(stay: StayItem, dateRange: String, voucherCode: String? = null) {
+    fun bookStay(stay: StayItem, dateRange: String, roomType: String = "Deluxe Luxury Safari Suite", voucherCode: String? = null) {
         viewModelScope.launch {
             val finalVoucherCode = voucherCode?.trim()?.uppercase()
             var discountUsed = 0.0
@@ -885,6 +885,7 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
                 type = "STAY",
                 title = stay.title,
                 location = "${stay.location}, ${stay.country}",
+                roomType = roomType,
                 dateRange = dateRange,
                 startDateTimestamp = System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000), // Default 7 days from now
                 price = stay.pricePerNight,
@@ -905,7 +906,7 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
         }
     }
 
-    fun bookSafari(safari: SafariItem, dateRange: String, voucherCode: String? = null) {
+    fun bookSafari(safari: SafariItem, dateRange: String, roomType: String = "Expedition Tent / Master Suite", voucherCode: String? = null) {
         viewModelScope.launch {
             val finalVoucherCode = voucherCode?.trim()?.uppercase()
             var discountUsed = 0.0
@@ -940,6 +941,7 @@ class SafariViewModel(private val repository: SafariRepository) : ViewModel() {
                 type = "SAFARI",
                 title = safari.title,
                 location = "${safari.park}, ${safari.country}",
+                roomType = roomType,
                 dateRange = dateRange,
                 startDateTimestamp = System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000), // Default 7 days from now
                 price = safari.price,

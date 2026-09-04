@@ -8,6 +8,9 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries ORDER BY timestamp DESC")
     fun getAllEntries(): Flow<List<JournalEntry>>
 
+    @Query("SELECT * FROM journal_entries WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getEntriesByUser(userId: String): Flow<List<JournalEntry>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEntry(entry: JournalEntry)
 

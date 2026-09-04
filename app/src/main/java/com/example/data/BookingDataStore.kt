@@ -28,9 +28,10 @@ class BookingDataStore(private val context: Context) {
 
     val cachedBookingsFlow: Flow<List<BookingEntity>> = context.dataStore.data
         .map { preferences ->
-            val json = preferences[BOOKINGS_KEY]
-            if (!json.isNullOrEmpty()) {
+            val encryptedJson = preferences[BOOKINGS_KEY]
+            if (!encryptedJson.isNullOrEmpty()) {
                 try {
+                    val json = EncryptionUtils.decrypt(encryptedJson)
                     bookingsAdapter.fromJson(json) ?: emptyList()
                 } catch (e: Exception) {
                     emptyList()
@@ -42,9 +43,10 @@ class BookingDataStore(private val context: Context) {
 
     val cachedVouchersFlow: Flow<List<VoucherEntity>> = context.dataStore.data
         .map { preferences ->
-            val json = preferences[VOUCHERS_KEY]
-            if (!json.isNullOrEmpty()) {
+            val encryptedJson = preferences[VOUCHERS_KEY]
+            if (!encryptedJson.isNullOrEmpty()) {
                 try {
+                    val json = EncryptionUtils.decrypt(encryptedJson)
                     vouchersAdapter.fromJson(json) ?: emptyList()
                 } catch (e: Exception) {
                     emptyList()
@@ -57,8 +59,9 @@ class BookingDataStore(private val context: Context) {
     suspend fun saveBookings(bookings: List<BookingEntity>) {
         try {
             val json = bookingsAdapter.toJson(bookings)
+            val encryptedJson = EncryptionUtils.encrypt(json)
             context.dataStore.edit { preferences ->
-                preferences[BOOKINGS_KEY] = json
+                preferences[BOOKINGS_KEY] = encryptedJson
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -68,8 +71,9 @@ class BookingDataStore(private val context: Context) {
     suspend fun saveVouchers(vouchers: List<VoucherEntity>) {
         try {
             val json = vouchersAdapter.toJson(vouchers)
+            val encryptedJson = EncryptionUtils.encrypt(json)
             context.dataStore.edit { preferences ->
-                preferences[VOUCHERS_KEY] = json
+                preferences[VOUCHERS_KEY] = encryptedJson
             }
         } catch (e: Exception) {
             e.printStackTrace()

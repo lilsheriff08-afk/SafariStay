@@ -14,12 +14,14 @@ data class BookingEntity(
     val guestName: String = "Valued Guest",
     val type: String = "STAY", // "STAY" or "SAFARI"
     val location: String = "",
+    val roomType: String = "Deluxe Luxury Safari Suite",
     val dateRange: String = "",
     val startDateTimestamp: Long = System.currentTimeMillis(), // Added for notification logic
     val price: Double = 0.0,
     val imageResName: String = "img_luxury_lodge",
     val status: String = "Confirmed", // "Confirmed", "Pending", "Held (Escrow)"
     val voucherCodeUsed: String? = null,
+    val userId: String = "current_user",
     val timestamp: Long = System.currentTimeMillis()
 )
 
